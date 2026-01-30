@@ -1,0 +1,89 @@
+// Prisma schema for backend workflow system
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+// enum WorkflowDomain {
+//     SQL
+//     TRADING
+//     DOCUMENT
+//     AGENT
+//     LLM
+//     MIXED
+// }
+
+// enum ExecutionStatus {
+//     PENDING
+//     RUNNING
+//     COMPLETED
+//     FAILED
+//     CANCELLED
+// }
+
+model User {
+    id        String     @id @default(auto()) @map("_id") @db.ObjectId
+    email     String     @unique
+    name      String
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+    workflows Workflow[]
+}
+
+model Workflow {
+    id          String       @id @default(auto()) @map("_id") @db.ObjectId
+    userId      String
+    user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name        String
+    description String?
+    nodes       Node[]
+    connections Connection[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([userId])
+}
+
+enum NodeType {
+    INITIAL
+}
+
+model Node {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    workflowId String
+    workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+    type       NodeType
+    position   Json
+    data       Json     @default("{}")
+
+    outputConnections Connection[] @relation("fromNode")
+    inputConnections  Connection[] @relation("toNode")
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([workflowId])
+}
+
+model Connection {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    workflowId String
+    workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+    fromNodeId String
+    fromNode   Node     @relation("fromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+    toNodeId   String
+    toNode     Node     @relation("toNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+    fromOutput String @default("main")
+    toInput    String @default("main")
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([workflowId])
+    @@unique([fromNodeId, fromOutput, toNodeId, toInput])
+}

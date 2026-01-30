@@ -1,0 +1,45 @@
+
+@base_url = http://localhost:3000/
+@threadId =query_1769572201000_7wf1tpx9ruc
+
+### Check app running
+GET {{base_url}}
+
+### ASK Query
+POST {{base_url}}query-llm
+Content-Type: application/json
+
+{
+    "prompt": "list all user who have purchased susbcription anytime"
+}
+
+# Response will contain:
+# - interrupted: true
+# - threadId: "query_xxx..."
+# - context: { question, generatedSql, queryResult, userQuery, sqlAttempts }
+
+### 2. Approve the SQL query (Continue workflow)
+POST {{base_url}}approve
+Content-Type: application/json
+
+{
+  "threadId": "{{threadId}}",
+  "approved": true,
+  "feedback": null
+}
+
+### 3. Reject and provide feedback (Regenerate SQL)
+POST {{base_url}}approve
+Content-Type: application/json
+
+{
+  "threadId": "{{threadId}}",
+  "approved": false,
+  "feedback": "I want the user email and latest susbcription purchase date also"
+}
+
+# The workflow will:
+# 1. Take your feedback
+# 2. Regenerate SQL with the feedback included
+# 3. Execute the new SQL
+# 4. Pause again for approval (returning interrupted: true)
