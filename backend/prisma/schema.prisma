@@ -51,6 +51,9 @@ model Workflow {
 
 enum NodeType {
     INITIAL
+    SQL_QUERY_TRIGGER
+    SQL_GENERATOR_ACTION
+    SQL_EXECUTOR_ACTION
 }
 
 model Node {
@@ -78,12 +81,12 @@ model Connection {
     fromNode   Node     @relation("fromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
     toNodeId   String
     toNode     Node     @relation("toNode", fields: [toNodeId], references: [id], onDelete: Cascade)
-    fromOutput String @default("main")
-    toInput    String @default("main")
+    fromOutput String   @default("main")
+    toInput    String   @default("main")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([workflowId])
     @@unique([fromNodeId, fromOutput, toNodeId, toInput])
+    @@index([workflowId])
 }

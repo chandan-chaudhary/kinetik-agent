@@ -1,7 +1,34 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+
+@variant dark (&:is(.dark *));
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-30px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -41,75 +68,131 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Workflow-specific colors */
+  --color-workflow-trigger: var(--workflow-trigger);
+  --color-workflow-action: var(--workflow-action);
+  --color-workflow-condition: var(--workflow-condition);
+  --color-workflow-loop: var(--workflow-loop);
+  --color-workflow-error: var(--workflow-error);
+  --color-workflow-success: var(--workflow-success);
+  
+  /* Node colors */
+  --color-node-initial: var(--node-initial);
+  --color-node-processing: var(--node-processing);
+  --color-node-terminal: var(--node-terminal);
+  --color-node-selected: var(--node-selected);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.5rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.09 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.09 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.09 0 0);
+  --primary: oklch(0.45 0.22 264);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 264);
+  --secondary-foreground: oklch(0.09 0 0);
+  --muted: oklch(0.96 0.01 264);
+  --muted-foreground: oklch(0.50 0.02 264);
+  --accent: oklch(0.96 0.01 264);
+  --accent-foreground: oklch(0.09 0 0);
+  --destructive: oklch(0.58 0.25 27);
+  --border: oklch(0.90 0.01 264);
+  --input: oklch(0.90 0.01 264);
+  --ring: oklch(0.45 0.22 264);
+  
+  /* Custom tokens for landing page */
+  --gradient-hero: linear-gradient(180deg, hsl(270 60% 95%) 0%, hsl(270 40% 98%) 50%, hsl(0 0% 100%) 100%);
+  --gradient-cta: linear-gradient(135deg, hsl(262 60% 55%) 0%, hsl(280 60% 60%) 100%);
+  --shadow-card: 0 4px 24px -4px hsl(262 40% 50% / 0.1);
+  --shadow-float: 0 8px 32px -8px hsl(262 40% 50% / 0.15);
+  
+  /* Chart colors */
+  --chart-1: oklch(0.65 0.22 41);
+  --chart-2: oklch(0.60 0.12 185);
+  --chart-3: oklch(0.40 0.07 227);
+  --chart-4: oklch(0.83 0.19 84);
+  --chart-5: oklch(0.77 0.19 70);
+  
+  /* Sidebar colors */
+  --sidebar: oklch(0.99 0 0);
+  --sidebar-foreground: oklch(0.09 0 0);
+  --sidebar-primary: oklch(0.45 0.22 264);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0.01 264);
+  --sidebar-accent-foreground: oklch(0.09 0 0);
+  --sidebar-border: oklch(0.90 0.01 264);
+  --sidebar-ring: oklch(0.45 0.22 264);
+  
+  /* Workflow-specific colors */
+  --workflow-trigger: 142 71% 45%;
+  --workflow-action: 221 83% 53%;
+  --workflow-condition: 45 93% 47%;
+  --workflow-loop: 280 75% 60%;
+  --workflow-error: 0 84% 60%;
+  --workflow-success: 142 71% 45%;
+  
+  /* Node type colors */
+  --node-initial: 142 71% 45%;
+  --node-processing: 221 83% 53%;
+  --node-terminal: 280 75% 60%;
+  --node-selected: 221 83% 53%;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.12 0.01 264);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.15 0.01 264);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.15 0.01 264);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.65 0.22 264);
+  --primary-foreground: oklch(0.12 0.01 264);
+  --secondary: oklch(0.20 0.02 264);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.20 0.02 264);
+  --muted-foreground: oklch(0.65 0.02 264);
+  --accent: oklch(0.20 0.02 264);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.65 0.20 27);
+  --border: oklch(0.25 0.02 264);
+  --input: oklch(0.25 0.02 264);
+  --ring: oklch(0.65 0.22 264);
+  
+  /* Chart colors - dark mode */
+  --chart-1: oklch(0.49 0.24 264);
+  --chart-2: oklch(0.70 0.17 162);
+  --chart-3: oklch(0.77 0.19 70);
+  --chart-4: oklch(0.63 0.27 304);
+  --chart-5: oklch(0.65 0.25 16);
+  
+  /* Sidebar colors - dark mode */
+  --sidebar: oklch(0.12 0.01 264);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.65 0.22 264);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.20 0.02 264);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.25 0.02 264);
+  --sidebar-ring: oklch(0.65 0.22 264);
+  
+  /* Workflow-specific colors - dark mode */
+  --workflow-trigger: 142 71% 55%;
+  --workflow-action: 221 83% 63%;
+  --workflow-condition: 45 93% 57%;
+  --workflow-loop: 280 75% 70%;
+  --workflow-error: 0 84% 70%;
+  --workflow-success: 142 71% 55%;
+  
+  /* Node type colors - dark mode */
+  --node-initial: 142 71% 55%;
+  --node-processing: 221 83% 63%;
+  --node-terminal: 280 75% 70%;
+  --node-selected: 221 83% 63%;
 }
 
 @layer base {
@@ -118,5 +201,117 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    @apply scroll-smooth;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full hover:bg-muted-foreground/30 transition-colors;
+  }
+}
+
+@layer utilities {
+  /* Workflow node utilities - each defined independently */
+  .workflow-node-trigger {
+    @apply rounded-lg border-2 bg-card shadow-md transition-all duration-200;
+    @apply border-workflow-trigger/30 hover:border-workflow-trigger hover:shadow-lg;
+  }
+  
+  .workflow-node-action {
+    @apply rounded-lg border-2 bg-card shadow-md transition-all duration-200;
+    @apply border-workflow-action/30 hover:border-workflow-action hover:shadow-lg;
+  }
+  
+  .workflow-node-condition {
+    @apply rounded-lg border-2 bg-card shadow-md transition-all duration-200;
+    @apply border-workflow-condition/30 hover:border-workflow-condition hover:shadow-lg;
+  }
+  
+  .workflow-node-selected {
+    @apply ring-2 ring-node-selected ring-offset-2 ring-offset-background;
+  }
+  
+  /* Card hover effect */
+  .workflow-card {
+    @apply transition-all duration-200 hover:shadow-lg hover:border-primary/30;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-background/80 backdrop-blur-md border border-border/50;
+  }
+  
+  /* Text gradients */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-workflow {
+    @apply bg-gradient-to-r from-workflow-trigger via-workflow-action to-workflow-loop bg-clip-text text-transparent;
+  }
+  
+  /* Focus visible improvements */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Workflow canvas background */
+  .workflow-canvas {
+    @apply bg-muted/5;
+  }
+  
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors;
+  }
+  
+  .status-success {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors;
+    @apply bg-workflow-success/10 text-workflow-success;
+  }
+  
+  .status-error {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors;
+    @apply bg-workflow-error/10 text-workflow-error;
+  }
+  
+  .status-processing {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors;
+    @apply bg-workflow-action/10 text-workflow-action;
+  }
+  
+  /* Landing page utilities */
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  
+  .gradient-cta {
+    background: var(--gradient-cta);
+  }
+  
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .shadow-float {
+    box-shadow: var(--shadow-float);
   }
 }

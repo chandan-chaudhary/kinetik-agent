@@ -9,5 +9,5 @@ export default registerAs('llm', () => ({
   ollamaModelProvider: process.env.OLLAMA_MODEL_PROVIDER || 'ollama',
 
   tavilyApiKey: process.env.TAVILY_API_KEY || '',
-  databaseUrl: process.env.DATABASE_URL || '',
+  sqlDatabaseUrl: process.env.SQL_DATABASE_URL || '',
 }));

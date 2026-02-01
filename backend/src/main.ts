@@ -10,7 +10,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Cookie'],
   });
   app.setGlobalPrefix('api');
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT || 3001);
 }
 
 // Enhanced error handling

@@ -8,7 +8,8 @@ let pool: Pool | null = null;
 const getPool = () => {
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL || llmConfig().databaseUrl,
+      connectionString:
+        process.env.SQL_DATABASE_URL || llmConfig().sqlDatabaseUrl,
     });
   }
   return pool;
@@ -27,13 +28,13 @@ interface DbRow {
 
 export const getDbSchema = async () => {
   console.log(
-    'DATABASE_URL:',
-    process.env.DATABASE_URL ? 'Found' : 'Not found',
+    'SQL_DATABASE_URL:',
+    process.env.SQL_DATABASE_URL ? 'Found' : 'Not found',
   );
 
-  if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL environment variable is not set');
-    return 'Database schema not available: DATABASE_URL not configured';
+  if (!process.env.SQL_DATABASE_URL) {
+    console.error('SQL_DATABASE_URL environment variable is not set');
+    return 'Database schema not available: SQL_DATABASE_URL not configured';
   }
 
   try {

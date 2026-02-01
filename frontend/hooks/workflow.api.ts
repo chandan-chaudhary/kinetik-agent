@@ -62,33 +62,3 @@ export async function fetchAllNodeTemplates(): Promise<NodeTemplate[]> {
     console.log(error);
   }
 }
-
-// In hooks/workflow.api.ts
-
-export const executeWorkflow = async (data: WorkflowDefinition) => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}workflow/execute`, data);
-    if (!response) throw new Error("No response from server");
-    if (response.status === 200 && response.data) {
-      toast.success("Workflow executed successfully!");
-      return response.data;
-    }
-  } catch (error) {
-    toast.error("Failed to execute workflow.");
-    console.log(error);
-  }
-};
-
-export const saveWorkflow = async (data: WorkflowDefinition) => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}workflow/save`, data);
-    if (!response) throw new Error("No response from server");
-    if (response.status === 200 && response.data) {
-      toast.success("Workflow saved!");
-      return response.data;
-    }
-  } catch (error) {
-    toast.error("Failed to save workflow.");
-    console.log(error);
-  }
-};

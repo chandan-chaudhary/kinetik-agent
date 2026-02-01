@@ -6,7 +6,6 @@ export const DateTimeSchema = z.string();
 
 // NodeType as defined in frontend types
 export const NodeTypeSchema = z.enum(["INITIAL"]);
-export type NodeType = z.infer<typeof NodeTypeSchema>;
 
 export const UserSchema = z.object({
   id: z.string().optional(),

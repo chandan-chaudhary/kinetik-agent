@@ -1,15 +1,7 @@
-import EntityHeader from "@/components/entity-header";
+"use client";
 import Editor from "../_components/Editor";
-
-type Props = {
-  params: Promise<{ workflowId: string }>;
-};
-export default async function WorkflowPage({ params }: Props) {
-  const { workflowId } = await params;
-  return (
-    <div className="w-full h-full">
-      <EntityHeader title="Workflow Editor" /> 
-      <Editor workflowId={workflowId} />
-    </div>
-  );
+import { useParams } from "next/navigation";
+export default function WorkflowPage() {
+  const { workflowId } = useParams<{ workflowId: string }>();
+  return <Editor workflowId={workflowId} />;
 }

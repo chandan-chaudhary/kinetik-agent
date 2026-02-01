@@ -1,10 +1,18 @@
+"use client";
+import Header from "./_components/LandingHeader";
+import HeroSection from "./_components/HeroSection";
+import FeaturesSection from "./_components/FeaturesSections";
+import CTASection from "./_components/CTASection";
+import Footer from "./_components/Footer";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <div className="text-center">
-        Hello there
-        </div>
+    <div className="min-h-screen">
+      <Header />
+      <HeroSection />
+      <FeaturesSection />
+      <CTASection />
+      <Footer />
     </div>
   );
 }

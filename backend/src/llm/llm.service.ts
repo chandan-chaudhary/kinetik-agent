@@ -42,7 +42,7 @@ export class LlmService implements OnModuleInit {
 
     // this.LLM = new ChatGroq({
     //   model: this.LLMConfigService.groqModel,
-    //   temperature: 0.5,
+    //   temperature: 0.7,
     // });
   }
 
@@ -69,7 +69,7 @@ export class LlmService implements OnModuleInit {
       )
       .compile({
         checkpointer: this.checkpointer,
-        // interruptBefore: ['approval'],
+        interruptBefore: ['approval'],
       });
 
     console.log(

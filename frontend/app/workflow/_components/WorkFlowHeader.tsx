@@ -1,6 +1,13 @@
-import EntityHeader from "../entity-header";
+import EntityHeader from "@/components/entity-header";
+import { PlusIcon } from "lucide-react";
 
-export default function WorkFlowHeader({ disabled, openCreate }: { disabled?: boolean; openCreate: () => void }) {
+export default function WorkFlowHeader({
+  disabled,
+  openCreate,
+}: {
+  disabled?: boolean;
+  openCreate: () => void;
+}) {
   return (
     <>
       <EntityHeader
@@ -11,6 +18,7 @@ export default function WorkFlowHeader({ disabled, openCreate }: { disabled?: bo
         // newButtonHref="/workflows/new"
         newButtonLabel="Create Workflow"
         isCreating={false}
+        icon={PlusIcon}
       />
     </>
   );
