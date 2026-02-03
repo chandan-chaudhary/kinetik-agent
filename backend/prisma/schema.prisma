@@ -52,8 +52,10 @@ model Workflow {
 enum NodeType {
     INITIAL
     SQL_QUERY_TRIGGER
+    LLM_NODE
     SQL_GENERATOR_ACTION
     SQL_EXECUTOR_ACTION
+    APPROVAL
 }
 
 model Node {

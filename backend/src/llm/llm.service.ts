@@ -13,7 +13,7 @@ import {
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { GraphResult, stateSchema, StateType } from 'src/config/schemas';
 import { NodesService } from 'src/nodes/nodes.service';
-// import { ChatGroq } from '@langchain/groq';
+import { ChatGroq } from '@langchain/groq';
 
 @Injectable()
 export class LlmService implements OnModuleInit {
@@ -47,8 +47,9 @@ export class LlmService implements OnModuleInit {
   }
 
   initGraph() {
+    const databse = 'DATABASE_URL_PLACEHOLDER';
     const graph = new StateGraph(stateSchema)
-      .addNode('schema', this.nodesService.getSchemaNode())
+      .addNode('schema', this.nodesService.getSchemaNode(databse))
       .addNode('sqlGenerator', this.nodesService.getSQLGeneratorNode(this.LLM))
       .addNode('sqlExecutor', this.nodesService.getSQLExecutorNode(this.LLM))
       .addNode('approval', this.nodesService.approvalNode(), {

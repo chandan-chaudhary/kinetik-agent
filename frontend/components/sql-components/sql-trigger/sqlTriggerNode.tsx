@@ -1,7 +1,8 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Node, NodeProps } from "@xyflow/react";
 import { Database } from "lucide-react";
 import { BaseTriggerNode } from "@/components/base-trigger-node";
+import SqlDialog from "../../CutomDialog";
 
 type SqltriggerNodeData = {
   connectionString: string;
@@ -38,6 +39,8 @@ type SqltriggerNodeType = Node<SqltriggerNodeData>;
 
 //     });
 export const SqltriggerNode = memo((props: NodeProps<SqltriggerNodeType>) => {
+  const [openDialog, setOpenDialog] = useState(false);
+  const status = "loading";
   const sqlNodeData = props.data as SqltriggerNodeData;
   const description = sqlNodeData.connectionString
     ? `Connection: ${sqlNodeData.connectionString}, Include Views: ${
@@ -45,16 +48,21 @@ export const SqltriggerNode = memo((props: NodeProps<SqltriggerNodeType>) => {
       }`
     : "Not configured";
 
+  function handleSettings() {
+    setOpenDialog(true);
+  }
   return (
     <>
+      <SqlDialog title="sql tigger NOde" description="trigger cinfig" open={openDialog} onOpenChange={setOpenDialog} />
       <BaseTriggerNode
         {...props}
         id={props.id}
         name="SQL Query Node"
         description={description}
         icon={Database}
-        onSettings={() => {}}
-        onDoubleClick={() => {}}
+        status={status}
+        onSettings={handleSettings}
+        onDoubleClick={handleSettings}
       />
     </>
   );

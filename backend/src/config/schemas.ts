@@ -5,18 +5,24 @@ import z from 'zod';
 
 let pool: Pool | null = null;
 
-const getPool = () => {
+const getPool = (databaseUrl?: string) => {
   if (!pool) {
     pool = new Pool({
       connectionString:
-        process.env.SQL_DATABASE_URL || llmConfig().sqlDatabaseUrl,
+        databaseUrl ||
+        process.env.SQL_DATABASE_URL ||
+        llmConfig().sqlDatabaseUrl,
     });
   }
   return pool;
 };
 
-export const getClient = async () => {
-  const pool = getPool();
+export const getClient = async (databaseUrl?: string) => {
+  if (!databaseUrl) {
+    const pool = getPool();
+    return await pool.connect();
+  }
+  const pool = getPool(databaseUrl);
   return await pool.connect();
 };
 
@@ -26,20 +32,20 @@ interface DbRow {
   data_type: string;
 }
 
-export const getDbSchema = async () => {
-  console.log(
-    'SQL_DATABASE_URL:',
-    process.env.SQL_DATABASE_URL ? 'Found' : 'Not found',
-  );
+export const getDbSchema = async (databaseUrl: string) => {
+  // console.log(
+  //   'SQL_DATABASE_URL:',
+  //   process.env.SQL_DATABASE_URL ? 'Found' : 'Not found',
+  // );
 
-  if (!process.env.SQL_DATABASE_URL) {
-    console.error('SQL_DATABASE_URL environment variable is not set');
-    return 'Database schema not available: SQL_DATABASE_URL not configured';
-  }
+  // if (!process.env.SQL_DATABASE_URL) {
+  //   console.error('SQL_DATABASE_URL environment variable is not set');
+  //   return 'Database schema not available: SQL_DATABASE_URL not configured';
+  // }
 
   try {
-    const client = await getClient();
-    console.log('Database connection successful');
+    const client = await getClient(databaseUrl);
+    console.log('Database connection successful', databaseUrl);
 
     try {
       const res = await client.query(`

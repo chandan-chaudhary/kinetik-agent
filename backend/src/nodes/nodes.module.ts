@@ -6,5 +6,6 @@ import { NodeTemplateService } from './node-template.service';
 @Module({
   controllers: [NodesController],
   providers: [NodesService, NodeTemplateService],
+  exports: [NodesService],
 })
 export class NodesModule {}

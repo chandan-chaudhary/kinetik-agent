@@ -7,6 +7,7 @@ import { NodesService } from './nodes/nodes.service';
 import { DatabaseModule } from './database/database.module';
 import { NodesModule } from './nodes/nodes.module';
 import { WorkflowModule } from './workflow/workflow.module';
+import { JobBotModule } from './job-bot/job-bot.module';
 import llmConfig from './config/llm.config';
 
 @Module({
@@ -19,6 +20,7 @@ import llmConfig from './config/llm.config';
     DatabaseModule,
     NodesModule,
     WorkflowModule,
+    JobBotModule,
   ],
   controllers: [AppController],
   providers: [AppService, LlmService, NodesService],

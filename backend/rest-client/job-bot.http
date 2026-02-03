@@ -1,0 +1,10 @@
+@base_url = http://localhost:3001/api/
+
+### Run Visual Automation
+POST {{base_url}}job-bot/run-automation
+Content-Type: application/json
+
+{
+    "url": "https://www.tradingview.com",
+    "highLevelGoal": "login with google and continue with google and  use email:chandanchaudhary3949@gmail.com"
+}

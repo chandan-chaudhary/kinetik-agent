@@ -53,19 +53,48 @@ export const schemaSystemMessage = (
       - Format your response in a readable way using markdown tables or structured text.
       - Be concise but complete in your explanations.`);
 
+// export const sqlExecutorMsg = (
+//   state: typeof stateSchema.State,
+//   data: { rowCount: number | null; rows: any[] },
+// ) =>
+//   new SystemMessage(
+//     `The user asked: "${state.userQuery}"
+
+// The SQL query was: ${state.generatedSql}
+
+// The query returned ${data.rowCount} row(s) with the following data:
+// ${JSON.stringify(data.rows, null, 2)}
+
+// Please provide a clear, natural language response to the user's question based on these results.
+// Format the data in a readable way (use tables if appropriate).
+// Be concise and helpful.`,
+//   );
+
 export const sqlExecutorMsg = (
   state: typeof stateSchema.State,
   data: { rowCount: number | null; rows: any[] },
 ) =>
   new SystemMessage(
-    `The user asked: "${state.userQuery}"
+    `### Role
+    You are a friendly Data Analyst. Your goal is to explain the database results to the user in a natural, helpful way.
 
-The SQL query was: ${state.generatedSql}
+    ### Input Context
+    - User's Question: "${state.userQuery}"
+    - SQL Executed: ${state.generatedSql}
+    - Data Found: ${JSON.stringify(data.rows)}
 
-The query returned ${data.rowCount} row(s) with the following data:
-${JSON.stringify(data.rows, null, 2)}
+    ### Response Guidelines
+    1. **Natural Summary**: Start with a brief, conversational sentence summarizing what was found (e.g., "I found 4 users in your database.").
+    2. **Clean Formatting**: 
+       - Do NOT show technical columns like 'Password' (if null), 'Clerk ID', or raw UUIDs unless the user specifically asked for them.
+       - Use **Bullet Points** for small lists (1-3 items).
+       - Use a **Clean Table** for larger lists, but only include columns relevant to a human (e.g., Name, Email, Date).
+    3. **Data Transformation**: Convert ISO timestamps (2025-11-20T00:10...) into readable dates like "Nov 20, 2025".
+    4. **Handle Empty Results**: If no rows are found, say "I couldn't find any records matching that request," and suggest what they might try next.
+    5. **No Technical Jargon**: Don't mention "rows", "JSON", or "SQL" in your final answer.
 
-Please provide a clear, natural language response to the user's question based on these results. 
-Format the data in a readable way (use tables if appropriate).
-Be concise and helpful.`,
+    ### Example Friendly Style:
+    "I've found 2 users who signed up recently! Here are their details:
+    * **John Doe** (john.doe@example.com) - Joined Nov 20, 2025
+    * **Jane Smith** (jane.smith@example.com) - Joined Nov 18, 2025"`,
   );

@@ -28,7 +28,9 @@ import { useWorkflowById, useUpdateWorkflow } from "@/hooks/useWorkflow";
 import { nodeComponents } from "./node_components/node-type-components";
 import { AddNodeButton } from "./add-node-button";
 import EntityHeader from "@/components/entity-header";
-import { Save } from "lucide-react";
+import { Save, MessageSquare } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function Editor({ workflowId }: { workflowId: string }) {
   const { data: workflow } = useWorkflowById(workflowId);
@@ -128,7 +130,14 @@ export default function Editor({ workflowId }: { workflowId: string }) {
         newButtonLabel={isSaving ? "Saving..." : "Save"}
         isCreating={isSaving}
         icon={Save}
-      />
+      >
+        <Link href={`/workflow/${workflowId}/chat`}>
+          <Button variant="outline" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </Button>
+        </Link>
+      </EntityHeader>
       <div className="flex-1 workflow-canvas relative">
         <ReactFlowProvider>
           <ReactFlow
@@ -144,6 +153,11 @@ export default function Editor({ workflowId }: { workflowId: string }) {
             //   animated: true,
             //   style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
             // }}
+            snapGrid={[10, 10]}
+            snapToGrid={true}
+            panOnScroll={true}
+            panOnDrag={false}
+            selectionOnDrag={true}
           >
             <Background gap={16} size={1} />
             <Controls

@@ -18,9 +18,9 @@ import {
 @Injectable()
 export class NodesService {
   constructor() {}
-  getSchemaNode(): GraphNode<typeof stateSchema> {
+  getSchemaNode(databaseUrl: string): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
-      console.log('🔍 Schema node executing...');
+      console.log('🔍 Schema node executing...', databaseUrl);
       // const messages = state.messages as BaseMessage[];
       state.messages.forEach((msg, i) => {
         console.log(
@@ -31,7 +31,7 @@ export class NodesService {
         );
       });
       try {
-        const dbSchema = await getDbSchema();
+        const dbSchema = await getDbSchema(databaseUrl);
 
         // Add system prompt first to guide the LLM
         // const schemaSystemMsg = schemaSystemMessage(dbSchema);

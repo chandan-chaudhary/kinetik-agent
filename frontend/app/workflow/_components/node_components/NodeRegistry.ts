@@ -1,5 +1,5 @@
 import { NodeType } from "@/lib/types/types";
-import { BotIcon, Clock, Database, DollarSign, Loader2, MouseIcon, Settings } from "lucide-react";
+import { Database, Loader2, Settings, ShipWheel } from "lucide-react";
 
 export type NodeTypeOptions = {
   type: NodeType;
@@ -8,13 +8,14 @@ export type NodeTypeOptions = {
   icon: React.ComponentType<{ className?: string }> | string;
 };
 
-export const triggerNode : NodeTypeOptions[] = [
+export const triggerNode: NodeTypeOptions[] = [
   // {
   //   type:NodeType.INITIAL,
   //   label: "Initial Node",
   //   description: "Start creating your workflow",
   //   icon: MouseIcon,
   // },
+
   {
     type: NodeType.SQL_QUERY_TRIGGER,
     label: "SQL Query Trigger",
@@ -27,12 +28,7 @@ export const triggerNode : NodeTypeOptions[] = [
   //   description: "Trigger workflow based on job bot events",
   //   icon: BotIcon,
   // },
-  // {
-  //   type: NodeType.LLM_TRIGGER,
-  //   label: "LLM Trigger",
-  //   description: "Trigger workflow using large language model responses",
-  //   icon: Loader2,
-  // },
+
   // {
   //   type: NodeType.TRADING_PRICE_TRIGGER,
   //   label: "Trading Price Trigger",
@@ -45,9 +41,15 @@ export const triggerNode : NodeTypeOptions[] = [
   //   description: "Trigger workflow at specific trading times",
   //   icon: Clock,
   // },
-]
+];
 
-export const actionNode : NodeTypeOptions[] = [
+export const actionNode: NodeTypeOptions[] = [
+  {
+    type: NodeType.LLM_NODE,
+    label: "LLM Node",
+    description: "Integrate Large Language Models into your workflow",
+    icon: ShipWheel,
+  },
   {
     type: NodeType.SQL_GENERATOR_ACTION,
     label: "SQL Generator Action",
@@ -60,4 +62,4 @@ export const actionNode : NodeTypeOptions[] = [
     description: "Run SQL commands against a database",
     icon: Loader2,
   },
-]
+];
