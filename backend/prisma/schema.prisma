@@ -56,6 +56,7 @@ enum NodeType {
     SQL_GENERATOR_ACTION
     SQL_EXECUTOR_ACTION
     APPROVAL
+    CONDITION
 }
 
 model Node {
@@ -85,6 +86,13 @@ model Connection {
     toNode     Node     @relation("toNode", fields: [toNodeId], references: [id], onDelete: Cascade)
     fromOutput String   @default("main")
     toInput    String   @default("main")
+
+    // NEW: Automatic condition handling
+    // When fromNode is CONDITION type:
+    // - fromOutput "yes" = condition is true
+    // - fromOutput "no" = condition is false
+    condition Json? @default("{}")
+    priority  Int   @default(0)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

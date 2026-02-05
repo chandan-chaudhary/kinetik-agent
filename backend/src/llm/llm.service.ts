@@ -1,82 +1,47 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ChatOllama } from '@langchain/ollama';
 import type { ConfigType } from '@nestjs/config';
 import llmConfig from 'src/config/llm.config';
 import { ContentBlock, HumanMessage } from '@langchain/core/messages';
-import {
-  StateGraph,
-  START,
-  MemorySaver,
-  END,
-  Command,
-} from '@langchain/langgraph';
+import { Command } from '@langchain/langgraph';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { GraphResult, stateSchema, StateType } from 'src/config/schemas';
-import { NodesService } from 'src/nodes/nodes.service';
+import { GraphResult, StateType } from 'src/config/schemas';
+import { LanggraphService } from './langgraph/langgraph.service';
+// import { ChatOllama } from '@langchain/ollama';
 import { ChatGroq } from '@langchain/groq';
-
+// import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 @Injectable()
 export class LlmService implements OnModuleInit {
-  public LLM: BaseChatModel;
-  private agent!: ReturnType<typeof this.initGraph>;
-  private checkpointer = new MemorySaver();
+  public LLM!: BaseChatModel;
+  private agent!: ReturnType<typeof this.langgraphService.initGraph>;
   constructor(
     @Inject(llmConfig.KEY)
     private LLMConfigService: ConfigType<typeof llmConfig>,
-    private nodesService: NodesService,
+    private langgraphService: LanggraphService,
   ) {}
 
   async onModuleInit() {
     // Small delay to ensure environment variables are loaded
     await new Promise((resolve) => setTimeout(resolve, 100));
-    this.initOllamaModel();
-    this.agent = this.initGraph();
+    this.initLLMModel();
+    this.agent = this.langgraphService.initGraph();
   }
 
-  initOllamaModel() {
-    this.LLM = new ChatOllama({
-      model: this.LLMConfigService.ollamaModel,
-      temperature: 0.7,
-      // numPredict: 4096,
-    });
+  initLLMModel() {
+    // this.LLM = new ChatOllama({
+    //   model: this.LLMConfigService.ollamaModel,
+    //   temperature: 0.7,
+    //   // numPredict: 4096,
+    // });
 
-    // this.LLM = new ChatGroq({
-    //   model: this.LLMConfigService.groqModel,
+    // this.LLM = new ChatGoogleGenerativeAI({
+    //   model: this.LLMConfigService.googleModel,
     //   temperature: 0.7,
     // });
-  }
 
-  initGraph() {
-    const databse = 'DATABASE_URL_PLACEHOLDER';
-    const graph = new StateGraph(stateSchema)
-      .addNode('schema', this.nodesService.getSchemaNode(databse))
-      .addNode('sqlGenerator', this.nodesService.getSQLGeneratorNode(this.LLM))
-      .addNode('sqlExecutor', this.nodesService.getSQLExecutorNode(this.LLM))
-      .addNode('approval', this.nodesService.approvalNode(), {
-        ends: ['sqlGenerator', '__end__'],
-      })
-
-      .addEdge(START, 'schema')
-      .addEdge('schema', 'sqlGenerator')
-      .addEdge('sqlGenerator', 'sqlExecutor')
-      .addConditionalEdges(
-        'sqlExecutor',
-        this.nodesService.shouldContinueNode(),
-        {
-          sqlGenerator: 'sqlGenerator',
-          approval: 'approval',
-          __end__: END,
-        },
-      )
-      .compile({
-        checkpointer: this.checkpointer,
-        interruptBefore: ['approval'],
-      });
-
-    console.log(
-      '📊 Graph compiled successfully with Command-based approval flow',
-    );
-    return graph;
+    this.LLM = new ChatGroq({
+      model: this.LLMConfigService.groqModel,
+      temperature: 0.7,
+    });
   }
 
   async queryLLM(
@@ -169,14 +134,4 @@ export class LlmService implements OnModuleInit {
     }
     return result as string;
   }
-
-  // Get the interrupt context (available after initial invoke)
-  // async getInterruptContext(threadId: string): Promise<any> {
-  //   const config = {
-  //     configurable: { thread_id: threadId },
-  //   };
-
-  //   const state = await this.agent.getState(config);
-  //   return state.values;
-  // }
 }

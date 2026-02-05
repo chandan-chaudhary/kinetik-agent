@@ -9,6 +9,7 @@ import { NodesModule } from './nodes/nodes.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { JobBotModule } from './job-bot/job-bot.module';
 import llmConfig from './config/llm.config';
+import { LanggraphService } from './llm/langgraph/langgraph.service';
 
 @Module({
   imports: [
@@ -23,6 +24,6 @@ import llmConfig from './config/llm.config';
     JobBotModule,
   ],
   controllers: [AppController],
-  providers: [AppService, LlmService, NodesService],
+  providers: [AppService, LlmService, NodesService, LanggraphService],
 })
 export class AppModule {}

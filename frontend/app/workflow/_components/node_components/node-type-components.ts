@@ -5,11 +5,15 @@ import { SqlGeneratorNode } from "@/components/sql-components/sql-action/sqlGene
 import { SqlExecutorNode } from "@/components/sql-components/sql-action/sqlExecutorNode";
 import { SqlQueryNode } from "@/components/sql-components/sql-trigger/sqlQueryNode";
 import { LLMNode } from "@/components/llmNode/llmNode";
+import { ApprovalNode } from "@/components/approvalNode/approvalNode";
+import { ConditionNode } from "@/components/conditionalNode/conditionalNode";
 
 export const nodeComponents = {
   [NodeType.INITIAL]: InitialNode,
   [NodeType.SQL_QUERY_TRIGGER]: SqlQueryNode,
   [NodeType.LLM_NODE]: LLMNode,
+  [NodeType.CONDITION]: ConditionNode,
+  [NodeType.APPROVAL]: ApprovalNode,
   [NodeType.SQL_GENERATOR_ACTION]: SqlGeneratorNode,
   [NodeType.SQL_EXECUTOR_ACTION]: SqlExecutorNode,
 } as const satisfies NodeTypes;

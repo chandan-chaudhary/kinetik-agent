@@ -129,7 +129,18 @@ export class NodesService {
         // console.log(data, 'db DATA in sqlExecutor');
         const systemMessage = sqlExecutorMsg(state, data);
         const result = await llmInstance.invoke([systemMessage]);
-        return { messages: [result], queryResult: data };
+
+        // Store the LLM's formatted response as queryResult
+        const queryResult =
+          typeof result.content === 'string'
+            ? result.content
+            : JSON.stringify(result.content);
+
+        return {
+          messages: [result],
+          queryResult: queryResult,
+          // rawData: data.rows, // Store raw rows separately if needed
+        };
       } catch (error) {
         console.error('Error executing SQL query:', error);
         return {
@@ -148,14 +159,16 @@ export class NodesService {
       console.log('Generated SQL:', state.generatedSql);
       console.log(
         'Query Result:',
-        JSON.stringify(state.queryResult).slice(0, 200),
+        typeof state.queryResult === 'string'
+          ? state.queryResult.slice(0, 200)
+          : JSON.stringify(state.queryResult).slice(0, 200),
       );
 
       // Interrupt for human approval with context
       const approval: { approved: boolean; feedback?: string } = interrupt({
         question: 'Does the SQL query and result match your requirements?',
         generatedSql: state.generatedSql,
-        queryResult: state.queryResult as any[],
+        queryResult: state.queryResult, // Now contains the LLM's formatted response
         userQuery: state.userQuery,
         sqlAttempts: state.sqlAttempts || 1,
       });
@@ -182,7 +195,7 @@ export class NodesService {
           goto: END,
           update: {
             approved: true,
-            humanFeedback: approval.feedback || null,
+            feedback: approval.feedback || null,
           },
         });
       } else {
@@ -191,7 +204,7 @@ export class NodesService {
           goto: 'sqlGenerator',
           update: {
             approved: false,
-            humanFeedback: approval.feedback || null,
+            feedback: approval.feedback || null,
           },
         });
       }

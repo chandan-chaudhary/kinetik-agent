@@ -10,18 +10,20 @@ ${state.dbSchema}
 
 USER QUESTION: ${state.userQuery}
 
-${state.error ? `PREVIOUS ERROR: ${state.error}\n\nPlease fix the SQL query based on this error.` : ''}
+${state.error ? `PREVIOUS ERROR: ${state.error}\n\nPlease fix the SQL query based on this error. Common issues:\n- Check ENUM TYPES section above for valid enum values\n- Use EXACT enum values (case-sensitive) shown in the schema\n- Do NOT quote enum values with single quotes in the WHERE clause\n- For example: WHERE status = 'ACTIVE' should be WHERE "status" = 'ACTIVE' only if 'ACTIVE' is a valid enum value shown in ENUM TYPES` : ''}
 CRITICAL INSTRUCTIONS:
 1. Generate ONLY the SQL query, nothing else
-2. Always use double quotes around table names: "User", "Invoice", etc.
-3. Use proper column names exactly as shown in the schema
+2. Always use double quotes around table and column names: "User", "Invoice", "status", etc.
+3. For ENUM columns: Use the exact enum values from the ENUM TYPES section in the schema
 4. Do NOT include markdown, code blocks, or explanations
 5. Return ONLY a valid PostgreSQL SELECT statement
+6. If filtering by enum: Use WHERE "columnName" = 'ENUM_VALUE' where ENUM_VALUE is one of the valid values listed in ENUM TYPES
 
 Examples:
 - SELECT * FROM "User";
 - SELECT id, email FROM "User" WHERE email LIKE '%example.com';
 - SELECT COUNT(*) FROM "Invoice";
+- SELECT * FROM "Invoice" WHERE "status" = 'ACTIVE'; (if 'ACTIVE' is a valid InvoiceStatus enum value)
 
 Now generate the SQL for the user's question.`,
   );

@@ -162,17 +162,26 @@ export class WorkflowController {
         executionResult.__interrupt__.length > 0
       ) {
         console.log('⏸️  Execution interrupted for approval');
+        const interruptValue = executionResult.__interrupt__[0]?.value as
+          | { question?: string }
+          | undefined;
+
         return {
           interrupted: true,
           threadId,
           workflowId: id,
-          context: executionResult.__interrupt__[0]?.value,
-          state: {
-            userQuery: executionResult.userQuery,
-            generatedSql: executionResult.generatedSql,
-            queryResult: executionResult.queryResult,
-            sqlAttempts: executionResult.sqlAttempts,
+          content: {
+            question:
+              interruptValue?.question ||
+              'Does the SQL query and result match your requirements?',
+            response: executionResult.queryResult, // LLM's formatted message
           },
+          // state: {
+          //   userQuery: executionResult.userQuery,
+          //   generatedSql: executionResult.generatedSql,
+          //   queryResult: executionResult.queryResult,
+          //   sqlAttempts: executionResult.sqlAttempts,
+          // },
         };
       }
 

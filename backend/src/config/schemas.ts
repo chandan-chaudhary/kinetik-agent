@@ -32,6 +32,11 @@ interface DbRow {
   data_type: string;
 }
 
+interface EnumRow {
+  enum_name: string;
+  enum_value: string;
+}
+
 export const getDbSchema = async (databaseUrl: string) => {
   // console.log(
   //   'SQL_DATABASE_URL:',
@@ -48,15 +53,25 @@ export const getDbSchema = async (databaseUrl: string) => {
     console.log('Database connection successful', databaseUrl);
 
     try {
-      const res = await client.query(`
+      // Fetch table and column information
+      const tableRes = await client.query(`
         SELECT table_name, column_name, data_type 
         FROM information_schema.columns 
         WHERE table_schema = 'public'
         ORDER BY table_name;
       `);
 
+      // Fetch enum information
+      const enumRes = await client.query(`
+        SELECT t.typname as enum_name, e.enumlabel as enum_value
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        WHERE t.typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+        ORDER BY t.typname, e.enumsortorder;
+      `);
+
       // Grouping the columns by table for the AI
-      const schema = (res.rows as DbRow[]).reduce(
+      const schema = (tableRes.rows as DbRow[]).reduce(
         (acc: Record<string, string[]>, row: DbRow) => {
           const { table_name, column_name, data_type } = row;
           if (!acc[table_name]) acc[table_name] = [];
@@ -66,9 +81,27 @@ export const getDbSchema = async (databaseUrl: string) => {
         {} as Record<string, string[]>,
       );
 
-      const result = Object.entries(schema)
+      // Group enums by type
+      const enumsByType: Record<string, string[]> = {};
+      for (const row of enumRes.rows as EnumRow[]) {
+        if (!enumsByType[row.enum_name]) {
+          enumsByType[row.enum_name] = [];
+        }
+        enumsByType[row.enum_name].push(row.enum_value);
+      }
+
+      // Build schema string
+      let result = Object.entries(schema)
         .map(([table, cols]) => `Table: ${table}\nColumns: ${cols.join(', ')}`)
         .join('\n\n');
+
+      // Add enum definitions if any exist
+      if (Object.keys(enumsByType).length > 0) {
+        result += '\n\nENUM TYPES:\n';
+        result += Object.entries(enumsByType)
+          .map(([enumName, values]) => `${enumName}: ${values.join(', ')}`)
+          .join('\n');
+      }
 
       console.log('Database schema fetched successfully');
       return result || 'No tables found in the database';
@@ -90,12 +123,14 @@ export const stateSchema = new StateSchema({
   // Generated SQL query
   generatedSql: z.string().default(''),
   // Query result
-  queryResult: z.record(z.any(), z.any()).default({}),
+  queryResult: z.string().default(''),
   // Error information
   error: z.string().optional().nullable(),
   sqlAttempts: z.number().default(0),
   approved: z.boolean().default(false),
   feedback: z.string().optional().nullable(),
+  // Condition node result for routing
+  conditionResult: z.boolean().optional(),
 });
 // Type for graph result that might be interrupted
 export type GraphResult<T = any> = T & {

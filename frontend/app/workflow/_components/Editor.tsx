@@ -21,6 +21,7 @@ import {
   Connection as CustomConnection,
   Workflow,
   NodeType,
+  EdgeCondition,
 } from "@/lib/types/types";
 
 import "@xyflow/react/dist/style.css";
@@ -31,11 +32,25 @@ import EntityHeader from "@/components/entity-header";
 import { Save, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  ConditionalEdge,
+  EdgeConfigDialog,
+} from "@/components/conditionalNode";
 
 export default function Editor({ workflowId }: { workflowId: string }) {
   const { data: workflow } = useWorkflowById(workflowId);
   const updateMutation = useUpdateWorkflow();
   const [isSaving, setIsSaving] = useState(false);
+  const [edgeDialog, setEdgeDialog] = useState<{
+    open: boolean;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
+    edgeId?: string;
+    condition?: EdgeCondition | null;
+    priority?: number;
+  } | null>(null);
   console.log(workflow);
 
   // local state initialised empty; sync when `workflow` changes
@@ -65,6 +80,11 @@ export default function Editor({ workflowId }: { workflowId: string }) {
           target: String(conn.toNodeId),
           sourceHandle: conn.fromOutput,
           targetHandle: conn.toInput,
+          type: conn.condition ? "conditional" : "default",
+          data: {
+            condition: conn.condition,
+            priority: conn.priority,
+          },
         }),
       );
 
@@ -90,6 +110,8 @@ export default function Editor({ workflowId }: { workflowId: string }) {
         toNodeId: edge.target,
         fromOutput: edge.sourceHandle || "main",
         toInput: edge.targetHandle || "main",
+        condition: edge.data?.condition || null,
+        priority: edge.data?.priority || 0,
       })) as unknown as Workflow["connections"],
     };
     try {
@@ -115,11 +137,30 @@ export default function Editor({ workflowId }: { workflowId: string }) {
     [],
   );
 
-  const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges((edgeSnapShot) => addEdge(params, edgeSnapShot)),
-    [],
-  );
+  const onConnect = useCallback((params: Connection) => {
+    // Open dialog to configure edge condition
+    setEdgeDialog({
+      open: true,
+      source: params.source!,
+      target: params.target!,
+      sourceHandle: params.sourceHandle || undefined,
+      targetHandle: params.targetHandle || undefined,
+    });
+  }, []);
+
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    // Allow editing existing edge conditions
+    setEdgeDialog({
+      open: true,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle || undefined,
+      targetHandle: edge.targetHandle || undefined,
+      edgeId: edge.id,
+      condition: (edge.data?.condition as EdgeCondition) || null,
+      priority: (edge.data?.priority as number) || 0,
+    });
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -134,7 +175,7 @@ export default function Editor({ workflowId }: { workflowId: string }) {
         <Link href={`/workflow/${workflowId}/chat`}>
           <Button variant="outline" className="gap-2">
             <MessageSquare className="h-4 w-4" />
-            Chat
+            Execute
           </Button>
         </Link>
       </EntityHeader>
@@ -146,17 +187,15 @@ export default function Editor({ workflowId }: { workflowId: string }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgeClick={onEdgeClick}
             nodeTypes={nodeComponents}
+            edgeTypes={{ conditional: ConditionalEdge }}
             fitView
             className="bg-muted/5"
-            // defaultEdgeOptions={{
-            //   animated: true,
-            //   style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
-            // }}
             snapGrid={[10, 10]}
             snapToGrid={true}
             panOnScroll={true}
-            panOnDrag={false}
+            panOnDrag={true}
             selectionOnDrag={true}
           >
             <Background gap={16} size={1} />
@@ -180,6 +219,57 @@ export default function Editor({ workflowId }: { workflowId: string }) {
             />
           </ReactFlow>
         </ReactFlowProvider>
+
+        {/* Edge Configuration Dialog */}
+        {edgeDialog && (
+          <EdgeConfigDialog
+            open={edgeDialog.open}
+            onOpenChange={(open) => !open && setEdgeDialog(null)}
+            sourceNode={edgeDialog.source}
+            targetNode={edgeDialog.target}
+            initialCondition={edgeDialog.condition}
+            initialPriority={edgeDialog.priority}
+            onSave={(config) => {
+              if (edgeDialog.edgeId) {
+                // Update existing edge
+                setEdges((eds) =>
+                  eds.map((e) =>
+                    e.id === edgeDialog.edgeId
+                      ? {
+                          ...e,
+                          type: config.condition ? "conditional" : "default",
+                          data: {
+                            condition: config.condition,
+                            priority: config.priority,
+                          },
+                        }
+                      : e,
+                  ),
+                );
+              } else {
+                // Add new edge
+                setEdges((eds) =>
+                  addEdge(
+                    {
+                      id: `${edgeDialog.source}-${edgeDialog.target}`,
+                      source: edgeDialog.source,
+                      target: edgeDialog.target,
+                      sourceHandle: edgeDialog.sourceHandle,
+                      targetHandle: edgeDialog.targetHandle,
+                      type: config.condition ? "conditional" : "default",
+                      data: {
+                        condition: config.condition,
+                        priority: config.priority,
+                      },
+                    },
+                    eds,
+                  ),
+                );
+              }
+              setEdgeDialog(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

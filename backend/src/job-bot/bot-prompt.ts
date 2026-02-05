@@ -146,84 +146,178 @@
 
 // ############################## 3nd times ###############################
 
-export const getSelectorPrompt = (
-  goal: string,
-  compactElements: string,
-): string => {
-  return `
-You are a browser automation controller.
-GOAL: ${goal}
+// export const getSelectorPrompt = (
+//   goal: string,
+//   compactElements: string,
+// ): string => {
+//   return `
+// You are a browser automation controller.
+// GOAL: ${goal}
 
-ELEMENTS LIST:
-${compactElements}
+// ELEMENTS LIST:
+// ${compactElements}
 
-INSTRUCTIONS:
-- Respond ONLY with the ID number of the best matching element.
-- If NO matching element exists in this list, respond with "NONE".
-- DO NOT EXPLAIN. Just the number or NONE.
+// INSTRUCTIONS:
+// - Respond ONLY with the ID number of the best matching element.
+// - If NO matching element exists in this list, respond with "NONE".
+// - DO NOT EXPLAIN. Just the number or NONE.
 
-ID:`;
-};
+// ID:`;
+// };
 
-export const getDecisionPrompt = (
+// export const getDecisionPrompt = (
+//   goal: string,
+//   currentUrl: string,
+//   elementContext: string,
+//   actionHistory: number[],
+// ): string => {
+//   return `
+// You are a browser automation agent. Reach the ULTIMATE GOAL by interacting with the page one step at a time.
+
+// ═══════════════════════════════════════════════
+// ULTIMATE GOAL: ${goal}
+// CURRENT URL:   ${currentUrl}
+// ═══════════════════════════════════════════════
+
+// PREVIOUS ACTIONS (IDs you already clicked/typed, in order):
+// ${actionHistory.length > 0 ? actionHistory.join(' → ') : 'none yet'}
+
+// ─── CRITICAL RULES (read every one) ──────────────
+
+// 1. CHECK THE URL FIRST.
+//    If the goal mentions a symbol/keyword and that word already appears in the
+//    current URL, the goal is ALREADY DONE. Return SUCCESS immediately.
+//    Example: goal is "search for NIFTY" and URL contains "symbol=NIFTY" → SUCCESS.
+
+// 2. NEVER click an ID that appears 2+ times in your PREVIOUS ACTIONS list above.
+//    It already failed. Clicking it again will loop forever.
+//    Pick a DIFFERENT element or return ERROR.
+
+// 3. If you see ANY of these, TYPE into it immediately — do not click other things:
+//    - An <input> element (any type)
+//    - Any element with placeholder containing: search, symbol, find, query, ticker
+//    - Any element with role="searchbox", role="textbox", role="combobox"
+//    - Any element with class containing "search"
+//    These ARE your target. Do not skip them.
+
+// 4. If you clicked something and NOTHING changed (no new input appeared), it was
+//    the wrong element. Look for alternatives.
+
+// 5. "id" MUST be an actual number from the ELEMENTS list. Never invent one.
+
+// ─── VISIBLE ELEMENTS ─────────────────────────────
+// ${elementContext}
+
+// ─── YOUR TASK ────────────────────────────────────
+// Pick the ONE best next action. Think step by step:
+//   a) Is the goal already done based on the URL? → SUCCESS
+//   b) Is there a typeable input visible right now? → TYPE into it
+//   c) Is there something to click to REVEAL an input? → CLICK it
+//      (but NOT if you already clicked it before — check PREVIOUS ACTIONS)
+//   d) Nothing makes sense? → ERROR
+
+// ─── RESPONSE ─────────────────────────────────────
+// Return ONLY valid JSON. Nothing else.
+
+// {
+//   "thought": "One sentence: why you chose this.",
+//   "action": "CLICK | TYPE | SUCCESS | ERROR",
+//   "id": <number from elements list, or null if SUCCESS/ERROR>,
+//   "text": "<only if TYPE — the value to type>",
+//   "reason": "<only if ERROR — why>"
+// }`;
+// };
+
+// ############################## 4th times ###############################
+/**
+ * Optimized prompts for browser automation bot.
+ * These prompts are designed to:
+ * 1. Be concise (reduce token usage)
+ * 2. Guide LLM to make better decisions
+ * 3. Handle edge cases effectively
+ */
+
+export function getDecisionPrompt(
   goal: string,
   currentUrl: string,
   elementContext: string,
   actionHistory: number[],
-): string => {
-  return `
-You are a browser automation agent. Reach the ULTIMATE GOAL by interacting with the page one step at a time.
+): string {
+  // Build action history context (what we've already tried)
+  const historyContext =
+    actionHistory.length > 0
+      ? `\n\nACTION HISTORY (recent attempts):\n${actionHistory.map((id, i) => `${i + 1}. Interacted with ID:${id}`).join('\n')}`
+      : '';
 
-═══════════════════════════════════════════════
-ULTIMATE GOAL: ${goal}
-CURRENT URL:   ${currentUrl}
-═══════════════════════════════════════════════
+  return `You are a browser automation agent. Your goal: ${goal}
 
-PREVIOUS ACTIONS (IDs you already clicked/typed, in order):
-${actionHistory.length > 0 ? actionHistory.join(' → ') : 'none yet'}
+CURRENT PAGE: ${currentUrl}
 
-─── CRITICAL RULES (read every one) ──────────────
+AVAILABLE ELEMENTS:
+${elementContext}
+${historyContext}
 
-1. CHECK THE URL FIRST.
-   If the goal mentions a symbol/keyword and that word already appears in the
-   current URL, the goal is ALREADY DONE. Return SUCCESS immediately.
-   Example: goal is "search for NIFTY" and URL contains "symbol=NIFTY" → SUCCESS.
+RULES:
+1. If goal is achieved, return {"action": "SUCCESS", "thought": "...", "id": null}
+2. If stuck or goal impossible, return {"action": "ERROR", "reason": "...", "id": null, "thought": "..."}
+3. To click: {"action": "CLICK", "id": <number>, "thought": "..."}
+4. To type: {"action": "TYPE", "id": <number>, "text": "...", "thought": "..."}
+5. AVOID repeating same actions - check HISTORY
+6. Prefer elements with clear labels/text
+7. For OAuth/login flows, look for "Continue with Google", "Sign in", etc.
+8. If you see a search input but goal isn't search-related, IGNORE it
 
-2. NEVER click an ID that appears 2+ times in your PREVIOUS ACTIONS list above.
-   It already failed. Clicking it again will loop forever.
-   Pick a DIFFERENT element or return ERROR.
+IMPORTANT:
+- Return ONLY valid JSON, no markdown, no backticks
+- "id" must be a number from the list above
+- "thought" should explain WHY you chose this action
+- If element not found, return ERROR, don't guess
 
-3. If you see ANY of these, TYPE into it immediately — do not click other things:
-   - An <input> element (any type)
-   - Any element with placeholder containing: search, symbol, find, query, ticker
-   - Any element with role="searchbox", role="textbox", role="combobox"
-   - Any element with class containing "search"
-   These ARE your target. Do not skip them.
+Respond with JSON:`;
+}
 
-4. If you clicked something and NOTHING changed (no new input appeared), it was
-   the wrong element. Look for alternatives.
+/**
+ * Legacy selector prompt (if still needed for backward compatibility)
+ */
+export function getSelectorPrompt(
+  goal: string,
+  elementContext: string,
+): string {
+  return `Find the element that matches this goal: "${goal}"
 
-5. "id" MUST be an actual number from the ELEMENTS list. Never invent one.
-
-─── VISIBLE ELEMENTS ─────────────────────────────
+Elements:
 ${elementContext}
 
-─── YOUR TASK ────────────────────────────────────
-Pick the ONE best next action. Think step by step:
-  a) Is the goal already done based on the URL? → SUCCESS
-  b) Is there a typeable input visible right now? → TYPE into it
-  c) Is there something to click to REVEAL an input? → CLICK it
-     (but NOT if you already clicked it before — check PREVIOUS ACTIONS)
-  d) Nothing makes sense? → ERROR
+Return ONLY the botId number of the best match. If no match, return -1.`;
+}
 
-─── RESPONSE ─────────────────────────────────────
-Return ONLY valid JSON. Nothing else.
+/**
+ * Specialized prompt for when bot is stuck (provides more guidance)
+ */
+export function getRecoveryPrompt(
+  goal: string,
+  currentUrl: string,
+  elementContext: string,
+  stuckReason: string,
+): string {
+  return `RECOVERY MODE - Bot is stuck.
 
-{
-  "thought": "One sentence: why you chose this.",
-  "action": "CLICK | TYPE | SUCCESS | ERROR",
-  "id": <number from elements list, or null if SUCCESS/ERROR>,
-  "text": "<only if TYPE — the value to type>",
-  "reason": "<only if ERROR — why>"
-}`;
-};
+GOAL: ${goal}
+CURRENT PAGE: ${currentUrl}
+STUCK REASON: ${stuckReason}
+
+ELEMENTS:
+${elementContext}
+
+Analyze the situation:
+1. Is the goal actually impossible on this page?
+2. Are we on the right page?
+3. Is there an alternative path to the goal?
+4. Should we look for different element types?
+
+Respond with JSON:
+- If truly stuck: {"action": "ERROR", "reason": "...", "id": null, "thought": "..."}
+- If found alternative: {"action": "CLICK" or "TYPE", "id": <number>, "text": "...", "thought": "..."}
+
+JSON:`;
+}

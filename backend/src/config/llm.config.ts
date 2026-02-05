@@ -5,6 +5,10 @@ export default registerAs('llm', () => ({
   groqModelProvider: process.env.GROQ_MODEL_PROVIDER || 'groq',
   groqApiKey: process.env.GROQ_API_KEY || '',
 
+  googleModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  googleModelProvider: process.env.GEMINI_MODEL_PROVIDER || 'google-genai',
+  googleApiKey: process.env.GOOGLE_API_KEY || '',
+
   ollamaModel: process.env.OLLAMA_MODEL || 'llama3.2',
   ollamaModelProvider: process.env.OLLAMA_MODEL_PROVIDER || 'ollama',
 

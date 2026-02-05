@@ -1,11 +1,7 @@
 import { API_BASE_URL } from "@/lib/utils";
 import axios from "axios";
 import { toast } from "sonner";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Workflow } from "@/lib/types/types";
 
 const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
@@ -40,6 +36,70 @@ const patchWorkflow = async ({
 
 const removeWorkflow = async (id: string) => {
   const res = await axios.delete<{ success: boolean }>(`${base}workflow/${id}`);
+  return res.data;
+};
+
+interface ExecuteWorkflowResponse {
+  interrupted?: boolean;
+  completed?: boolean;
+  threadId?: string;
+  content?: string | {
+    question: string;
+    response: string;
+  };
+  state?: {
+    generatedSql?: string;
+    queryResult?: Record<string, unknown>[];
+    userQuery?: string;
+  };
+}
+
+const executeWorkflow = async ({
+  workflowId,
+  prompt,
+}: {
+  workflowId: string;
+  prompt: string;
+}): Promise<ExecuteWorkflowResponse> => {
+  const res = await axios.post<ExecuteWorkflowResponse>(
+    `${base}workflow/${workflowId}/execute`,
+    { prompt },
+  );
+  return res.data;
+};
+
+interface ApproveWorkflowPayload {
+  threadId: string;
+  workflowId: string;
+  approved: boolean;
+  feedback?: string;
+}
+
+interface ApproveWorkflowResponse {
+  completed?: boolean;
+  content?: string;
+  interrupted?: boolean;
+  state?: {
+    generatedSql?: string;
+    queryResult?: Record<string, unknown>[];
+    userQuery?: string;
+  };
+}
+
+const approveWorkflow = async ({
+  threadId,
+  workflowId,
+  approved,
+  feedback,
+}: ApproveWorkflowPayload): Promise<ApproveWorkflowResponse> => {
+  const res = await axios.post<ApproveWorkflowResponse>(
+    `${base}workflow/execution/${threadId}/approve`,
+    {
+      workflowId,
+      approved,
+      feedback,
+    },
+  );
   return res.data;
 };
 
@@ -93,5 +153,25 @@ export function useDeleteWorkflow() {
       toast.success("Workflow deleted");
     },
     onError: () => toast.error("Failed to delete workflow"),
+  });
+}
+
+export function useExecuteWorkflow() {
+  return useMutation({
+    mutationFn: executeWorkflow,
+    onError: (error) => {
+      console.error("Error executing workflow:", error);
+      toast.error("Failed to execute workflow");
+    },
+  });
+}
+
+export function useApproveWorkflow() {
+  return useMutation({
+    mutationFn: approveWorkflow,
+    onError: (error) => {
+      console.error("Error approving workflow:", error);
+      toast.error("Failed to process approval");
+    },
   });
 }

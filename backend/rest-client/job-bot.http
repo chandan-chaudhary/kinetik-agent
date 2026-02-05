@@ -4,7 +4,24 @@
 POST {{base_url}}job-bot/run-automation
 Content-Type: application/json
 
+
 {
     "url": "https://www.tradingview.com",
     "highLevelGoal": "login with google and continue with google and  use email:chandanchaudhary3949@gmail.com"
 }
+
+# {
+#   "url": "https://x.com",
+#   "highLevelGoal": "post a tweet saying 'Hello World!'"
+# }
+
+# {
+#   "url": "https://amazon.com",
+#   "highLevelGoal": "search for wireless headphones under $50 and add first result to cart"
+# }
+
+# {
+#     "url": "https://www.tradingview.com",
+#     "highLevelGoal": "login with google and continue with google and  use email:chandanchaudhary3949@gmail.com"
+# }
+   ### "highLevelGoal": "login with google and continue with google and  use email:chandanchaudhary3949@gmail.com"

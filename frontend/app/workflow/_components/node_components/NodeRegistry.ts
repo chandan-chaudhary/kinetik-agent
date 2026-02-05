@@ -1,5 +1,13 @@
 import { NodeType } from "@/lib/types/types";
-import { Database, Loader2, Settings, ShipWheel } from "lucide-react";
+import {
+  Database,
+  GitBranch,
+  Loader2,
+  Settings,
+  ShipWheel,
+  User,
+  Waypoints,
+} from "lucide-react";
 
 export type NodeTypeOptions = {
   type: NodeType;
@@ -44,6 +52,24 @@ export const triggerNode: NodeTypeOptions[] = [
 ];
 
 export const actionNode: NodeTypeOptions[] = [
+  {
+    type: NodeType.CONDITION,
+    label: "Condition",
+    description: "Branch workflow based on a condition (if/else)",
+    icon: GitBranch,
+  },
+  // {
+  //   type: NodeType.SHOULD_CONTINUE,
+  //   label: "Conditional Node",
+  //   description: "Route workflow based on conditions",
+  //   icon: Waypoints,
+  // },
+ {
+    type: NodeType.APPROVAL,
+    label: "Approval",
+    description: "Require human approval before continuing",
+    icon: User, // You can change this icon
+  },
   {
     type: NodeType.LLM_NODE,
     label: "LLM Node",
