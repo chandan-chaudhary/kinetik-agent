@@ -1,7 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { StateGraph, START, MemorySaver, END } from '@langchain/langgraph';
 import { stateSchema } from 'src/config/schemas';
-import { NodesService } from 'src/nodes/nodes.service';
+import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { LlmService } from '../llm.service';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class LanggraphService {
   private checkpointer = new MemorySaver();
 
   constructor(
-    private nodesService: NodesService,
+    private dbNodesService: DatabaseNodesService,
     @Inject(forwardRef(() => LlmService))
     private readonly llmService: LlmService,
   ) {}
@@ -17,16 +17,16 @@ export class LanggraphService {
   initGraph() {
     const databse = 'DATABASE_URL_PLACEHOLDER';
     const graph = new StateGraph(stateSchema)
-      .addNode('schema', this.nodesService.getSchemaNode(databse))
+      .addNode('schema', this.dbNodesService.getSchemaNode(databse))
       .addNode(
         'sqlGenerator',
-        this.nodesService.getSQLGeneratorNode(this.llmService.LLM),
+        this.dbNodesService.getSQLGeneratorNode(this.llmService.LLM),
       )
       .addNode(
         'sqlExecutor',
-        this.nodesService.getSQLExecutorNode(this.llmService.LLM),
+        this.dbNodesService.getSQLExecutorNode(this.llmService.LLM),
       )
-      .addNode('approval', this.nodesService.approvalNode(), {
+      .addNode('approval', this.dbNodesService.approvalNode(), {
         ends: ['sqlGenerator', '__end__'],
       })
 
@@ -35,7 +35,7 @@ export class LanggraphService {
       .addEdge('sqlGenerator', 'sqlExecutor')
       .addConditionalEdges(
         'sqlExecutor',
-        this.nodesService.shouldContinueNode(),
+        this.dbNodesService.shouldContinueNode(),
         {
           sqlGenerator: 'sqlGenerator',
           approval: 'approval',

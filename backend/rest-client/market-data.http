@@ -1,0 +1,21 @@
+@base_url = http://localhost:3001/api/
+
+###Get Assets
+GET {{base_url}}nodes/assets
+
+
+### Get market data for a ticker
+GET {{base_url}}nodes/market-data
+Content-Type: application/json
+
+{
+    "ticker": "BTC/USD",
+    "type": "crypto"
+}
+
+
+
+# {
+#     "ticker": "AAPL",
+#     "type": "stock"
+# }

@@ -7,7 +7,7 @@ import {
   type GraphNode,
 } from '@langchain/langgraph';
 import { stateSchema } from 'src/config/schemas';
-import { NodesService } from 'src/nodes/nodes.service';
+import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { NodeType, Prisma } from '@prisma/client';
 import { LlmService } from '@/llm/llm.service';
 
@@ -29,7 +29,7 @@ export class WorkflowExecutorService {
   private graphCache = new Map<string, CompiledGraphResult>();
 
   constructor(
-    private nodesService: NodesService,
+    private dbNodesService: DatabaseNodesService,
     private llmService: LlmService,
   ) {}
 
@@ -47,17 +47,17 @@ export class WorkflowExecutorService {
 
     const checkpointer = new MemorySaver();
     const graph = new StateGraph(stateSchema);
-    const interruptNodes: string[] = [];
+    // const interruptNodes: string[] = [];
 
     // Add all nodes to the graph
     for (const node of workflow.nodes) {
-      this.logger.debug(`  Adding node: ${node.id} (${node.type})`);
-      const graphNode = this.createNode(node, workflow);
+      this.logger.debug(`Adding node: ${node.id} (${node.type})`);
+      const graphNode = this.createNode(node);
       graph.addNode(node.id, graphNode);
 
-      if (node.type === NodeType.APPROVAL) {
-        interruptNodes.push(node.id);
-      }
+      // if (node.type === NodeType.APPROVAL) {
+      //   interruptNodes.push(node.id);
+      // }
     }
 
     // Find trigger node
@@ -96,33 +96,33 @@ export class WorkflowExecutorService {
 
   private createNode(
     node: WorkflowWithRelations['nodes'][number],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    workflow: WorkflowWithRelations,
   ): GraphNode<typeof stateSchema> {
     const nodeData = node.data as Record<string, unknown>;
 
     switch (node.type) {
       case NodeType.SQL_QUERY_TRIGGER: {
         const databaseUrl = (nodeData?.databaseUrl as string) || '';
-        return this.nodesService.getSchemaNode(databaseUrl);
+        return this.dbNodesService.getSchemaNode(databaseUrl);
       }
 
       case NodeType.SQL_GENERATOR_ACTION: {
         if (!this.llmService.LLM) {
           throw new Error('LLM not configured. Please configure LLM.');
         }
-        return this.nodesService.getSQLGeneratorNode(this.llmService.LLM);
+        return this.dbNodesService.getSQLGeneratorNode(this.llmService.LLM);
       }
 
       case NodeType.SQL_EXECUTOR_ACTION: {
         if (!this.llmService.LLM) {
           throw new Error('LLM not configured. Please configure LLM.');
         }
-        return this.nodesService.getSQLExecutorNode(this.llmService.LLM);
+        return this.dbNodesService.getSQLExecutorNode(this.llmService.LLM);
       }
 
-      case NodeType.APPROVAL:
-        return this.nodesService.approvalNode();
+      case NodeType.APPROVAL: {
+        // const nodeId = '697de85b74463f0a60ecc605';
+        return this.dbNodesService.approvalNode();
+      }
 
       case NodeType.CONDITION: {
         // Condition node - evaluates and sets routing decision
@@ -301,64 +301,6 @@ export class WorkflowExecutorService {
 
     graph.addConditionalEdges(
       conditionNodeId as any,
-      routingFunction,
-      targetMap as any,
-    );
-  }
-
-  /**
-   * Add conditional routing for regular nodes with edge conditions
-   */
-  private addConditionalRouting(
-    graph: StateGraph<typeof stateSchema>,
-    sourceNodeId: string,
-    connections: WorkflowWithRelations['connections'],
-  ) {
-    // Create routing function
-    const routingFunction = (state: typeof stateSchema.State) => {
-      this.logger.debug(`  🔍 Evaluating conditions from ${sourceNodeId}`);
-
-      // Check each connection's condition in priority order
-      for (const conn of connections) {
-        const condition = conn.condition as Record<string, unknown> | null;
-
-        // If no condition or empty condition, use this route
-        if (!condition || Object.keys(condition).length === 0) {
-          this.logger.debug(
-            `  ✅ No condition (default), routing to ${conn.toNodeId}`,
-          );
-          return conn.toNodeId;
-        }
-
-        // Evaluate condition
-        if (this.evaluateCondition(state, condition)) {
-          this.logger.debug(`  ✅ Condition met, routing to ${conn.toNodeId}`);
-          return conn.toNodeId;
-        }
-      }
-
-      // Default fallback
-      const defaultConn = connections[0];
-      if (defaultConn) {
-        this.logger.debug(
-          `  ⚠️ No condition met, using default route to ${defaultConn.toNodeId}`,
-        );
-        return defaultConn.toNodeId;
-      }
-
-      this.logger.warn(`  ⚠️ No valid route from ${sourceNodeId}, ending`);
-      return END;
-    };
-
-    // Build target map
-    const targetMap: Record<string, string> = {};
-    connections.forEach((conn) => {
-      targetMap[conn.toNodeId] = conn.toNodeId;
-    });
-    targetMap[END] = END;
-
-    graph.addConditionalEdges(
-      sourceNodeId as any,
       routingFunction,
       targetMap as any,
     );

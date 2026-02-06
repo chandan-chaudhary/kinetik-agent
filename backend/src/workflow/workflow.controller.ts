@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { WorkflowService } from './workflow.service';
 import { Prisma } from '@prisma/client';
-import { WorkflowExecutorService } from '../workflow-executor/workflow-executor.service';
+import { WorkflowExecutorService } from './workflow-executor.service';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { GraphResult, StateType } from 'src/config/schemas';

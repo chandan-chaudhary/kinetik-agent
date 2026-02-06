@@ -1,48 +1,65 @@
-import { Controller, Get, Query, Logger } from '@nestjs/common';
-import { NodesService } from './nodes.service';
-import {
-  GetNodeTemplatesQueryDto,
-  NodeTemplateDto,
-} from './dto/node-template.dto';
-import { NodeTemplateService } from './node-template.service';
+import { Body, Controller, Get, Logger, Query } from '@nestjs/common';
+import { DatabaseNodesService } from './databaseNodes.service';
+import { TradingNodeService } from './trading-node/trading-node.service';
+import { AlphaVantageService } from './alpha-vantage/alpha-vantage.service';
+
 @Controller('nodes')
 export class NodesController {
   private readonly logger = new Logger(NodesController.name);
 
   constructor(
-    private readonly nodeTemplateService: NodeTemplateService,
-    private readonly nodesService: NodesService,
+    private readonly databaseNodesService: DatabaseNodesService,
+    private readonly tradingNodeService: TradingNodeService,
+    private readonly alphaVantageService: AlphaVantageService,
   ) {}
 
-  /**
-   * Get all available node templates
-   * Can be filtered by domain or category
-   */
-  @Get()
-  getNodeTemplates(
-    @Query() query: GetNodeTemplatesQueryDto,
-  ): NodeTemplateDto[] | Record<string, NodeTemplateDto[]> {
-    this.logger.log(
-      `Getting node templates with filters: ${JSON.stringify(query)}`,
-    );
-
-    if (query.domain) {
-      return this.nodeTemplateService.getTemplatesByDomain(query.domain);
+  @Get('assets')
+  async getAssets() {
+    try {
+      this.logger.log(`Received request to fetch assets`);
+      const assets = await this.tradingNodeService.getAssets();
+      this.logger.log(`Successfully fetched assets`);
+      console.log(assets);
+      return assets;
+    } catch (error) {
+      this.logger.error(`Error fetching assets: ${error}`);
+      throw error;
     }
-
-    if (query.kind) {
-      return this.nodeTemplateService.getTemplatesByKind(query.kind);
-    }
-
-    // Return all templates grouped by domain for easy consumption
-    return this.nodeTemplateService.getTemplatesGroupedByDomain();
   }
 
-  /**
-   * Get all templates as flat array
-   */
-  @Get('all')
-  getAllTemplates(): NodeTemplateDto[] {
-    return this.nodeTemplateService.getAllTemplates();
+  // Example endpoint to fetch market data for a ticker
+  @Get('market-data')
+  async getMarketData(
+    @Body() { ticker, type }: { ticker: string; type: 'stock' | 'crypto' },
+  ) {
+    try {
+      this.logger.log(`Received request to fetch market data for ${ticker}`);
+      const marketData = await this.tradingNodeService.getMarketData({
+        ticker,
+        type,
+      });
+      this.logger.log(`Successfully fetched market data for ${ticker}`);
+      console.log(marketData);
+
+      return marketData;
+    } catch (error) {
+      this.logger.error(`Error fetching market data for ${ticker}: ${error}`);
+      throw error;
+    }
+  }
+
+  @Get('quote')
+  async getQuote(@Query('symbol') symbol: string) {
+    try {
+      this.logger.log(`Received request to fetch quote for ${symbol}`);
+      const quote = await this.alphaVantageService.getGlobalQuote(symbol);
+      this.logger.log(`Successfully fetched quote for ${symbol}`);
+      console.table(quote);
+
+      return quote;
+    } catch (error) {
+      this.logger.error(`Error fetching quote for ${symbol}: ${error}`);
+      throw error;
+    }
   }
 }

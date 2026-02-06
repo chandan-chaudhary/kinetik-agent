@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
-import { NodesService } from './nodes.service';
+import { HttpModule } from '@nestjs/axios';
+import { DatabaseNodesService } from './databaseNodes.service';
 import { NodesController } from './nodes.controller';
-import { NodeTemplateService } from './node-template.service';
+import { TradingNodeService } from './trading-node/trading-node.service';
+import { AlphaVantageService } from './alpha-vantage/alpha-vantage.service';
 
 @Module({
+  imports: [HttpModule],
   controllers: [NodesController],
-  providers: [NodesService, NodeTemplateService],
-  exports: [NodesService],
+  providers: [DatabaseNodesService, TradingNodeService, AlphaVantageService],
+  exports: [DatabaseNodesService],
 })
 export class NodesModule {}

@@ -16,7 +16,7 @@ import {
 } from 'src/config/messagePrompts';
 
 @Injectable()
-export class NodesService {
+export class DatabaseNodesService {
   constructor() {}
   getSchemaNode(databaseUrl: string): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
@@ -153,7 +153,7 @@ export class NodesService {
   }
 
   // Human approval node for SQL validation
-  approvalNode(): GraphNode<typeof stateSchema> {
+  approvalNode(nodeId?: string): GraphNode<typeof stateSchema> {
     return (state: typeof stateSchema.State) => {
       console.log('✅ Approval node executing...');
       console.log('Generated SQL:', state.generatedSql);
@@ -201,7 +201,7 @@ export class NodesService {
       } else {
         console.log('🔁 Regenerating SQL with feedback');
         return new Command({
-          goto: 'sqlGenerator',
+          goto: nodeId || 'sqlGenerator',
           update: {
             approved: false,
             feedback: approval.feedback || null,
