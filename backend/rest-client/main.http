@@ -6,7 +6,7 @@
 GET {{base_url}}
 
 ### ASK Query
-POST {{base_url}}query-llm
+POST {{base_url}}langgraph/query-dbgraph
 Content-Type: application/json
 
 {
@@ -19,7 +19,7 @@ Content-Type: application/json
 # - context: { question, generatedSql, queryResult, userQuery, sqlAttempts }
 
 ### 2. Approve the SQL query (Continue workflow)
-POST {{base_url}}approve
+POST {{base_url}}langgraph/approve
 Content-Type: application/json
 
 {

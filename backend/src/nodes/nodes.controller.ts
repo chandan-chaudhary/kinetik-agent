@@ -29,15 +29,10 @@ export class NodesController {
 
   // Example endpoint to fetch market data for a ticker
   @Get('market-data')
-  async getMarketData(
-    @Body() { ticker, type }: { ticker: string; type: 'stock' | 'crypto' },
-  ) {
+  getMarketData(@Body() { ticker }: { ticker: string }) {
     try {
       this.logger.log(`Received request to fetch market data for ${ticker}`);
-      const marketData = await this.tradingNodeService.getMarketData({
-        ticker,
-        type,
-      });
+      const marketData = this.tradingNodeService.getMarketData();
       this.logger.log(`Successfully fetched market data for ${ticker}`);
       console.log(marketData);
 

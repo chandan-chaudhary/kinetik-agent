@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { RSI } from 'technicalindicators';
 import Alpaca from '@alpacahq/alpaca-trade-api';
-
+import marketApiConfig from '@/config/market-api.config';
+import type { ConfigType } from '@nestjs/config';
+import { marketSchema } from './marketSchema';
+import { GraphNode } from '@langchain/langgraph';
+import { chromium } from 'playwright-extra';
+import { ElementHandle } from 'playwright';
 // 1. Define strict interfaces for type safety
 export interface MarketDataResult {
   ticker: string;
@@ -29,12 +34,13 @@ export class TradingNodeService {
   private readonly logger = new Logger(TradingNodeService.name);
   private readonly alpaca: Alpaca;
 
-  constructor() {
+  constructor(
+    @Inject(marketApiConfig.KEY)
+    private readonly marketApiSettings: ConfigType<typeof marketApiConfig>,
+  ) {
     this.alpaca = new Alpaca({
-      keyId: process.env.ALPACA_API_KEY || 'PK4QTAS4CFON2VTVFG5HC4YCBI',
-      secretKey:
-        process.env.ALPACA_API_SECRET ||
-        '2FPnLp3Bvq5VD4XjnVVMrD1qUS68mA6738h4Edd8NaQh',
+      keyId: this.marketApiSettings.alpacaApiKey,
+      secretKey: this.marketApiSettings.alpacaApiSecret,
       paper: true,
       feed: 'iex',
     });
@@ -50,20 +56,159 @@ export class TradingNodeService {
     }
   }
 
-  async getMarketData({
-    ticker,
-    type,
-  }: {
-    ticker: string;
-    type: 'stock' | 'crypto';
-  }): Promise<MarketDataResult> {
-    const isCrypto = type === 'crypto';
-    if (isCrypto) {
-      return this.getCryptoMarketData({ ticker });
-    } else {
-      return this.getStockMarketData({ ticker });
-    }
+  getMarketData(): GraphNode<typeof marketSchema> {
+    return async (state: typeof marketSchema.State) => {
+      const isCrypto = state.userQuery?.type === 'crypto';
+      if (isCrypto) {
+        const result = await this.getCryptoMarketData({
+          ticker: state.userQuery?.ticker,
+        });
+        return { marketLiveData: result };
+      } else {
+        const result = await this.getStockMarketData({
+          ticker: state.userQuery?.ticker,
+        });
+        return { marketLiveData: result };
+      }
+    };
   }
+
+  // GET MARKET NEWS AND SENTIMENT
+  scrapeNews(): GraphNode<typeof marketSchema> {
+    return async (state: typeof marketSchema.State) => {
+      const browser = await chromium.launch({
+        headless: true,
+        channel: 'chrome',
+      });
+      const context = await browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      });
+      const page = await context.newPage();
+
+      // Block unnecessary resources
+      await page.route('**/*', (route) => {
+        const type = route.request().resourceType();
+        if (['image', 'stylesheet', 'font', 'media'].includes(type)) {
+          return route.abort();
+        }
+        return route.continue();
+      });
+
+      try {
+        const ticker = state.userQuery?.ticker || '';
+        this.logger.log(`Searching for ticker: ${ticker}...`);
+
+        // Navigate to Google Finance
+        await page.goto('https://www.google.com/finance', {
+          waitUntil: 'networkidle',
+          timeout: 30000,
+        });
+
+        // Wait for page to be fully loaded
+        await page.waitForTimeout(2000);
+
+        // Find all search inputs and use the first visible one
+        const searchInputs = await page.$$('input.Ax4B8.ZAGvjd[type="text"]');
+
+        let searchInput: ElementHandle<SVGElement | HTMLElement> | null = null;
+        for (const input of searchInputs) {
+          const isVisible = await input.isVisible();
+          if (isVisible) {
+            searchInput = input;
+            this.logger.log('Found visible search input');
+            break;
+          }
+        }
+
+        if (!searchInput) {
+          throw new Error('Could not find visible search input');
+        }
+
+        // Click and fill the search input
+        await searchInput.click();
+        await page.waitForTimeout(500);
+        await searchInput.fill(ticker);
+
+        this.logger.log(`Typed "${ticker}" into search box`);
+
+        // Wait for autocomplete dropdown
+        await page.waitForTimeout(2000);
+
+        // Press Arrow Down and Enter to select first result
+        await page.keyboard.press('ArrowDown');
+        await page.waitForTimeout(500);
+        await page.keyboard.press('Enter');
+
+        this.logger.log('Pressed Enter on search result');
+
+        // Wait for navigation
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(3000);
+
+        this.logger.log(`Successfully navigated to ${ticker} page`);
+
+        // Wait for news section
+        await page.waitForSelector('.zLrlHb', {
+          timeout: 15000,
+          state: 'visible',
+        });
+
+        // Scrape news items
+        const newsItems = await page.evaluate(() => {
+          const newsElements = document.querySelectorAll('.zLrlHb');
+          console.log(`Found ${newsElements.length} news items`);
+
+          return Array.from(newsElements)
+            .slice(0, 10)
+            .map((el) => {
+              const title =
+                el.querySelector('.F2KAFc')?.textContent?.trim() || '';
+              const source =
+                el.querySelector('.AYBNIb')?.textContent?.trim() || '';
+              const time =
+                el.querySelector('.HzW5e')?.textContent?.trim() || '';
+              const link =
+                el.querySelector('a.TxRU9d')?.getAttribute('href') || '';
+
+              return { title, source, time, link };
+            })
+            .filter((item) => item.title && item.title.length > 0);
+        });
+
+        console.log(`Scraped ${newsItems.length} news items:`, newsItems);
+
+        if (newsItems.length === 0) {
+          await page.screenshot({
+            path: `debug-${ticker}-${Date.now()}.png`,
+            fullPage: true,
+          });
+          this.logger.warn(`No news found. Screenshot saved.`);
+        }
+
+        return { newsSentiment: newsItems };
+      } catch (e) {
+        this.logger.error(`Scraping failed: ${e}`);
+
+        try {
+          await page.screenshot({
+            path: `error-${Date.now()}.png`,
+            fullPage: true,
+          });
+          this.logger.log('Error screenshot saved');
+        } catch (screenshotError) {
+          console.log(screenshotError);
+
+          // Ignore
+        }
+
+        return { newsSentiment: [] };
+      } finally {
+        await browser.close();
+      }
+    };
+  }
+
   /**
    * Fetches deep market metrics for a given ticker
    * @param ticker The stock symbol (e.g., 'AAPL')
@@ -82,7 +227,7 @@ export class TradingNodeService {
       const stockBarOptions = {
         start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         end: new Date().toISOString(),
-        timeframe: '1Day',
+        timeframe: this.alpaca.newTimeframe(1, this.alpaca.timeframeUnit.DAY),
         feed: 'iex', // ← Add this!
         limit: 20,
       };
@@ -148,7 +293,7 @@ export class TradingNodeService {
       const CryptoOptions = {
         start: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
         end: new Date().toISOString(),
-        timeframe: this.alpaca.newTimeframe(1, this.alpaca.timeframeUnit.MIN),
+        timeframe: this.alpaca.newTimeframe(1, this.alpaca.timeframeUnit.DAY),
       };
       // 2. Get Historical Crypto Bars (Last 20 days)
       const barsRequest = await this.alpaca.getCryptoBars(

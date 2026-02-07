@@ -3,6 +3,8 @@ import { StateGraph, START, MemorySaver, END } from '@langchain/langgraph';
 import { stateSchema } from 'src/config/schemas';
 import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { LlmService } from '../llm.service';
+import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
+import { marketSchema } from '@/nodes/trading-node/marketSchema';
 
 @Injectable()
 export class LanggraphService {
@@ -10,11 +12,12 @@ export class LanggraphService {
 
   constructor(
     private dbNodesService: DatabaseNodesService,
+    private marketNodesService: TradingNodeService,
     @Inject(forwardRef(() => LlmService))
     private readonly llmService: LlmService,
   ) {}
 
-  initGraph() {
+  initDatabaseGraph() {
     const databse = 'DATABASE_URL_PLACEHOLDER';
     const graph = new StateGraph(stateSchema)
       .addNode('schema', this.dbNodesService.getSchemaNode(databse))
@@ -50,6 +53,20 @@ export class LanggraphService {
     console.log(
       '📊 Graph compiled successfully with Command-based approval flow',
     );
+    return graph;
+  }
+
+  initMarketGraph() {
+    const graph = new StateGraph(marketSchema)
+      // .addNode('marketData', this.marketNodesService.getMarketData())
+      .addNode('scrapeNews', this.marketNodesService.scrapeNews())
+      // .addEdge(START, 'marketData')
+      .addEdge(START, 'scrapeNews')
+      // .addEdge('marketData', END)
+      .addEdge('scrapeNews', END)
+      .compile({
+        checkpointer: this.checkpointer,
+      });
     return graph;
   }
 }

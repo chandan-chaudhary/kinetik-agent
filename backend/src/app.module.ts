@@ -9,6 +9,7 @@ import { WorkflowModule } from './workflow/workflow.module';
 import { JobBotModule } from './job-bot/job-bot.module';
 import llmConfig from './config/llm.config';
 import { LlmModule } from './llm/llm.module';
+import { LanggraphController } from './llm/langgraph/langgraph.controller';
 import marketApiConfig from './config/market-api.config';
 
 @Module({
@@ -24,7 +25,7 @@ import marketApiConfig from './config/market-api.config';
     WorkflowModule,
     JobBotModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, LanggraphController],
   providers: [AppService, DatabaseNodesService],
 })
 export class AppModule {}

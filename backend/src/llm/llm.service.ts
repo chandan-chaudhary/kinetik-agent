@@ -8,11 +8,16 @@ import { GraphResult, StateType } from 'src/config/schemas';
 import { LanggraphService } from './langgraph/langgraph.service';
 // import { ChatOllama } from '@langchain/ollama';
 import { ChatGroq } from '@langchain/groq';
+import { MarketStateType } from '@/nodes/trading-node/marketSchema';
 // import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 @Injectable()
 export class LlmService implements OnModuleInit {
   public LLM!: BaseChatModel;
-  private agent!: ReturnType<typeof this.langgraphService.initGraph>;
+  private dbAgent!: ReturnType<typeof this.langgraphService.initDatabaseGraph>;
+  private marketAgent!: ReturnType<
+    typeof this.langgraphService.initMarketGraph
+  >;
+
   constructor(
     @Inject(llmConfig.KEY)
     private LLMConfigService: ConfigType<typeof llmConfig>,
@@ -23,7 +28,8 @@ export class LlmService implements OnModuleInit {
     // Small delay to ensure environment variables are loaded
     await new Promise((resolve) => setTimeout(resolve, 100));
     this.initLLMModel();
-    this.agent = this.langgraphService.initGraph();
+    this.dbAgent = this.langgraphService.initDatabaseGraph();
+    this.marketAgent = this.langgraphService.initMarketGraph();
   }
 
   initLLMModel() {
@@ -44,7 +50,7 @@ export class LlmService implements OnModuleInit {
     });
   }
 
-  async queryLLM(
+  async queryDBgraph(
     prompt: string,
   ): Promise<string | Record<string, any> | (ContentBlock | Text)[]> {
     console.log('🚀 Starting LLM query:', prompt);
@@ -56,7 +62,7 @@ export class LlmService implements OnModuleInit {
       },
     };
 
-    const result = (await this.agent.invoke(
+    const result = (await this.dbAgent.invoke(
       {
         messages: [new HumanMessage(prompt)],
         userQuery: prompt,
@@ -110,7 +116,7 @@ export class LlmService implements OnModuleInit {
     };
 
     // Resume with the decision using Command pattern
-    const result = await this.agent.invoke(
+    const result = await this.dbAgent.invoke(
       new Command({ resume: { approved, feedback } }),
       config,
     );
@@ -130,6 +136,48 @@ export class LlmService implements OnModuleInit {
         threadId: threadId,
         content: messages[messages.length - 1].content,
         // state: result,
+      };
+    }
+    return result as string;
+  }
+
+  async queryMarketGraph({ ticker, type }: { ticker: string; type: string }) {
+    console.log('🚀 Starting MarketGraph query:', ticker, type);
+    const threadId = `market_query_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    const config = {
+      configurable: {
+        thread_id: threadId,
+      },
+    };
+
+    const result = (await this.marketAgent.invoke(
+      {
+        messages: [
+          new HumanMessage(`Fetch market data for ${ticker} of type ${type}`),
+        ],
+        userQuery: { ticker, type: type as 'crypto' | 'stocks' },
+      },
+      config,
+    )) as GraphResult<MarketStateType>;
+    console.log('📥 MarketGraph result:', typeof result, Object.keys(result));
+
+    if (result && typeof result === 'object' && 'messages' in result) {
+      console.log(result);
+
+      const messages = (result as { messages: { content: string }[] }).messages;
+      console.log(
+        '📝 Final message:',
+        messages[messages.length - 1].content.slice(0, 100),
+      );
+      return {
+        completed: true,
+        threadId: threadId,
+        content: messages[messages.length - 1].content,
+        state: {
+          marketLiveData: result.marketLiveData,
+          newsSentiment: result.newsSentiment,
+        },
       };
     }
     return result as string;

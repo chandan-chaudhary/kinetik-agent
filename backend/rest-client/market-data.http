@@ -5,11 +5,11 @@ GET {{base_url}}nodes/assets
 
 
 ### Get market data for a ticker
-GET {{base_url}}nodes/market-data
+POST {{base_url}}langgraph/query-marketgraph
 Content-Type: application/json
 
 {
-    "ticker": "BTC/USD",
+    "ticker": "aapl",
     "type": "crypto"
 }
 
