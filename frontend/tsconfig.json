@@ -28,7 +28,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
-, "../backend/src/config/handleError.ts"  ],
+    "**/*.mts"],
   "exclude": ["node_modules"]
 }
