@@ -3,10 +3,13 @@ import { RSI } from 'technicalindicators';
 import Alpaca from '@alpacahq/alpaca-trade-api';
 import marketApiConfig from '@/config/market-api.config';
 import type { ConfigType } from '@nestjs/config';
-import { marketSchema } from './marketSchema';
+import { marketSchema, MarketStateType } from './marketSchema';
 import { GraphNode } from '@langchain/langgraph';
 import { chromium } from 'playwright-extra';
 import { ElementHandle } from 'playwright';
+import { LlmService } from '@/llm/llm.service';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { marketSystemPrompt } from './marketPrompt';
 // 1. Define strict interfaces for type safety
 export interface MarketDataResult {
   ticker: string;
@@ -35,6 +38,7 @@ export class TradingNodeService {
   private readonly alpaca: Alpaca;
 
   constructor(
+    private readonly llmService: LlmService,
     @Inject(marketApiConfig.KEY)
     private readonly marketApiSettings: ConfigType<typeof marketApiConfig>,
   ) {
@@ -186,7 +190,7 @@ export class TradingNodeService {
           this.logger.warn(`No news found. Screenshot saved.`);
         }
 
-        return { newsSentiment: newsItems };
+        return { news: newsItems };
       } catch (e) {
         this.logger.error(`Scraping failed: ${e}`);
 
@@ -202,7 +206,7 @@ export class TradingNodeService {
           // Ignore
         }
 
-        return { newsSentiment: [] };
+        return { news: [] };
       } finally {
         await browser.close();
       }
@@ -355,5 +359,38 @@ export class TradingNodeService {
       );
       throw error;
     }
+  }
+
+  async summarizeMarketData(
+    state: typeof marketSchema.State,
+  ): Promise<Partial<MarketStateType>> {
+    const newsContent = state?.news?.content as string;
+    const marketData = state?.marketLiveData as MarketDataResult; // Your interface
+
+    if (!newsContent || !marketData) {
+      this.logger.warn('Insufficient data for summary');
+      return { summarised: { result: 'Data missing' } };
+    }
+    this.logger.log('Summarizing market data and news with LLM...');
+
+    // Convert the object into a readable string for the AI
+    const dataString = `
+  --- TECHNICAL DATA ---
+  Ticker: ${marketData.ticker}
+  Price: $${marketData.price} (${marketData.dailyChange}%)
+  RSI: ${marketData.rsi} (Overbought: ${marketData.isOverbought} / Oversold: ${marketData.isOversold})
+  
+  --- NEWS CONTENT ---
+  ${newsContent}
+  `;
+    const systemPrompt = new SystemMessage(marketSystemPrompt);
+    const humanMessage = new HumanMessage(dataString);
+    // Standard LangChain/LLM invocation
+    const result = await this.llmService.LLM.invoke([
+      systemPrompt,
+      humanMessage,
+    ]);
+
+    return { messages: [result], summarised: result };
   }
 }

@@ -8,8 +8,9 @@ export const marketSchema = new StateSchema({
     type: z.enum(['crypto', 'stocks']),
   }),
   marketLiveData: z.record(z.string(), z.any()).optional(),
-  newsSentiment: z.array(z.record(z.string(), z.any())).optional(),
-  technicalIndicators: z.any().optional(),
+  news: z.record(z.string(), z.any()).optional(),
+  summarised: z.record(z.string(), z.any()).optional(),
+  telegramSentStatus: z.string().optional(),
   // Error information
   error: z.string().optional().nullable(),
 });

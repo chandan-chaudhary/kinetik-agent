@@ -1,12 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LlmService } from './llm.service';
 import { LanggraphService } from './langgraph/langgraph.service';
 import { NodesModule } from 'src/nodes/nodes.module';
-import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
+import { TelegramService } from '@/telegram-bot/telegram-bot.service';
 
 @Module({
-  providers: [LlmService, LanggraphService, TradingNodeService],
-  imports: [NodesModule],
-  exports: [LlmService, LanggraphService, TradingNodeService],
+  providers: [LlmService, LanggraphService, TelegramService],
+  imports: [forwardRef(() => NodesModule)],
+  exports: [LlmService, LanggraphService, TelegramService],
 })
 export class LlmModule {}

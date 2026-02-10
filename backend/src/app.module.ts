@@ -10,6 +10,7 @@ import { JobBotModule } from './job-bot/job-bot.module';
 import llmConfig from './config/llm.config';
 import { LlmModule } from './llm/llm.module';
 import { LanggraphController } from './llm/langgraph/langgraph.controller';
+import { TelegramService } from './telegram-bot/telegram-bot.service';
 import marketApiConfig from './config/market-api.config';
 
 @Module({
@@ -26,6 +27,6 @@ import marketApiConfig from './config/market-api.config';
     JobBotModule,
   ],
   controllers: [AppController, LanggraphController],
-  providers: [AppService, DatabaseNodesService],
+  providers: [AppService, DatabaseNodesService, TelegramService],
 })
 export class AppModule {}

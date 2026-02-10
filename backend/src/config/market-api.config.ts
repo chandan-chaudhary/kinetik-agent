@@ -6,4 +6,8 @@ export default registerAs('marketApi', () => ({
     process.env.ALPACA_API_SECRET ||
     '2FPnLp3Bvq5VD4XjnVVMrD1qUS68mA6738h4Edd8NaQh',
   alphaVantageApiKey: process.env.ALPHA_VANTAGE_API_KEY || 'SYDHAU9PGVNZ51K2',
+
+  // TELEGRAM CONFIG
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+  telegramChatId: process.env.TELEGRAM_CHAT_ID,
 }));

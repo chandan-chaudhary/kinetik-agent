@@ -5,6 +5,8 @@ import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { LlmService } from '../llm.service';
 import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
 import { marketSchema } from '@/nodes/trading-node/marketSchema';
+import { tavilyTool } from '@/tools/tavily.tool';
+import { TelegramService } from '@/telegram-bot/telegram-bot.service';
 
 @Injectable()
 export class LanggraphService {
@@ -12,6 +14,8 @@ export class LanggraphService {
 
   constructor(
     private dbNodesService: DatabaseNodesService,
+    private telegramService: TelegramService,
+    @Inject(forwardRef(() => TradingNodeService))
     private marketNodesService: TradingNodeService,
     @Inject(forwardRef(() => LlmService))
     private readonly llmService: LlmService,
@@ -58,12 +62,18 @@ export class LanggraphService {
 
   initMarketGraph() {
     const graph = new StateGraph(marketSchema)
-      // .addNode('marketData', this.marketNodesService.getMarketData())
-      .addNode('scrapeNews', this.marketNodesService.scrapeNews())
-      // .addEdge(START, 'marketData')
+      .addNode('marketData', this.marketNodesService.getMarketData())
+      .addNode('scrapeNews', tavilyTool)
+      .addNode('sendTelegram', this.telegramService.sendToTelegram())
+      .addNode('summarise', (state) =>
+        this.marketNodesService.summarizeMarketData(state),
+      )
+      .addEdge(START, 'marketData')
       .addEdge(START, 'scrapeNews')
-      // .addEdge('marketData', END)
-      .addEdge('scrapeNews', END)
+      .addEdge('marketData', END)
+      .addEdge('scrapeNews', 'summarise')
+      .addEdge('summarise', 'sendTelegram')
+      .addEdge('sendTelegram', END)
       .compile({
         checkpointer: this.checkpointer,
       });

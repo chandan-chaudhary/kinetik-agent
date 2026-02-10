@@ -176,7 +176,8 @@ export class LlmService implements OnModuleInit {
         content: messages[messages.length - 1].content,
         state: {
           marketLiveData: result.marketLiveData,
-          newsSentiment: result.newsSentiment,
+          // news: result.news,
+          summarised: result.summarised,
         },
       };
     }

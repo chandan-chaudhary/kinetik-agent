@@ -2,6 +2,7 @@ import { Body, Controller, Get, Logger, Query } from '@nestjs/common';
 import { DatabaseNodesService } from './databaseNodes.service';
 import { TradingNodeService } from './trading-node/trading-node.service';
 import { AlphaVantageService } from './alpha-vantage/alpha-vantage.service';
+import { tavilyTool } from '@/tools/tavily.tool';
 
 @Controller('nodes')
 export class NodesController {
@@ -54,6 +55,32 @@ export class NodesController {
       return quote;
     } catch (error) {
       this.logger.error(`Error fetching quote for ${symbol}: ${error}`);
+      throw error;
+    }
+  }
+
+  @Get('test-tavily')
+  async testTavily(
+    @Query('ticker') ticker: string = 'AAPL',
+    @Query('type') type: 'crypto' | 'stocks' = 'stocks',
+  ) {
+    try {
+      const startTime = Date.now();
+      this.logger.log(`⏱️ Starting Tavily research for ${ticker} (${type})`);
+
+      const result = await tavilyTool({
+        userQuery: { ticker, type },
+      } as any);
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      this.logger.log(`✅ Tavily research completed in ${duration}s`);
+
+      return {
+        duration: `${duration}s`,
+        result,
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error in Tavily research: ${error}`);
       throw error;
     }
   }
