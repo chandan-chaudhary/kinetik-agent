@@ -169,7 +169,7 @@ export const zIndex = {
   max: 100,
 } as const;
 
-export default {
+const designSystem = {
   nodeTypeColors,
   statusColors,
   cardVariants,
@@ -183,3 +183,5 @@ export default {
   breakpoints,
   zIndex,
 };
+
+export default designSystem;

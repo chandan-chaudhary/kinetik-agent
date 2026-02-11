@@ -185,11 +185,11 @@ const HeroSection = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             >
               <Button
-                onClick={() => router.push("/workflow")}
+                onClick={() => router.push("/login")}
                 size="lg"
                 className="gradient-cta text-primary-foreground px-8 py-6 text-base font-medium rounded-xl hover:opacity-90 transition-opacity shadow-lg group"
               >
-                Start Building
+                Get Started
                 <svg
                   className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform"
                   fill="none"

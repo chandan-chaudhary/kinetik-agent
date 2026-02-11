@@ -1,10 +1,13 @@
-'use client'
+"use client";
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const CTASection = () => {
+  const router = useRouter();
+
   return (
     <section className="py-24 gradient-hero">
       <div className="container mx-auto px-6">
@@ -19,19 +22,21 @@ const CTASection = () => {
             Ready to Transform Your Business?
           </h2>
           <p className="text-lg text-muted-foreground mb-10">
-            Join thousands of companies already using our AI platform to drive growth and efficiency.
+            Join thousands of companies already using our AI platform to drive
+            growth and efficiency.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
+            <Button
+              onClick={() => router.push("/login")}
+              size="lg"
               className="gradient-cta text-primary-foreground px-8 py-6 text-base font-medium rounded-xl hover:opacity-90 transition-opacity"
             >
-              Start Free Trial
+              Get Started Now
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
+            <Button
+              variant="outline"
+              size="lg"
               className="px-8 py-6 text-base font-medium rounded-xl border-border hover:bg-secondary"
             >
               Schedule Demo

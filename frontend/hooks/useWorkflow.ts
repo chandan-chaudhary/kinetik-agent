@@ -7,19 +7,25 @@ import { Workflow } from "@/lib/types/types";
 const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
 
 const fetchWorkflows = async (): Promise<Workflow[]> => {
-  const res = await axios.get<Workflow[]>(`${base}workflow`);
+  const res = await axios.get<Workflow[]>(`${base}workflow`, {
+    withCredentials: true,
+  });
   return res.data;
 };
 
 const fetchWorkflow = async (id: string): Promise<Workflow> => {
   console.log("fetching by id ");
 
-  const res = await axios.get(`${base}workflow/${id}`);
+  const res = await axios.get(`${base}workflow/${id}`, {
+    withCredentials: true,
+  });
   return res.data;
 };
 
 const postWorkflow = async (data: Partial<Workflow>) => {
-  const res = await axios.post<Workflow>(`${base}workflow`, data);
+  const res = await axios.post<Workflow>(`${base}workflow`, data, {
+    withCredentials: true,
+  });
   return res.data;
 };
 
@@ -30,12 +36,19 @@ const patchWorkflow = async ({
   id: string;
   data: Partial<Workflow>;
 }) => {
-  const res = await axios.patch<Workflow>(`${base}workflow/${id}`, data);
+  const res = await axios.patch<Workflow>(`${base}workflow/${id}`, data, {
+    withCredentials: true,
+  });
   return res.data;
 };
 
 const removeWorkflow = async (id: string) => {
-  const res = await axios.delete<{ success: boolean }>(`${base}workflow/${id}`);
+  const res = await axios.delete<{ success: boolean }>(
+    `${base}workflow/${id}`,
+    {
+      withCredentials: true,
+    },
+  );
   return res.data;
 };
 
@@ -43,10 +56,12 @@ interface ExecuteWorkflowResponse {
   interrupted?: boolean;
   completed?: boolean;
   threadId?: string;
-  content?: string | {
-    question: string;
-    response: string;
-  };
+  content?:
+    | string
+    | {
+        question: string;
+        response: string;
+      };
   state?: {
     generatedSql?: string;
     queryResult?: Record<string, unknown>[];
@@ -64,6 +79,7 @@ const executeWorkflow = async ({
   const res = await axios.post<ExecuteWorkflowResponse>(
     `${base}workflow/${workflowId}/execute`,
     { prompt },
+    { withCredentials: true },
   );
   return res.data;
 };
@@ -98,6 +114,9 @@ const approveWorkflow = async ({
       workflowId,
       approved,
       feedback,
+    },
+    {
+      withCredentials: true,
     },
   );
   return res.data;

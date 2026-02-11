@@ -11,52 +11,63 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Workflow,
   Activity,
-  Settings,
   CreditCard,
-  LogOut,
   Home,
+  KeyIcon,
+  Settings,
 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
+import { UserDisplay } from "@/components/UserDisplay";
 
 const navigationItems = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/dashboard", label: "Home", icon: Home },
   { href: "/workflow", label: "Workflows", icon: Workflow },
   { href: "/executions", label: "Executions", icon: Activity },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/credentials", label: "Credentials", icon: KeyIcon },
+  { href: "/billing", label: "Billing Portal", icon: CreditCard },
 ];
 
-const footerItems = [
-  { href: "/billing", label: "Billing Portal", icon: CreditCard },
-  { href: "/logout", label: "Sign out", icon: LogOut },
-];
+const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
 
 export default function AppSidebar() {
   const pathname = usePathname();
+  const { user, isLoading } = useUser();
+  const { state } = useSidebar();
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <Image
-            src="/kinetik-application-logo.png"
-            alt="Kinetik Logo"
-            width={36}
-            height={36}
-            className="w-9 h-9"
-          />
-          <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight">Kinetik</span>
-            <span className="text-xs text-sidebar-foreground/60">
-              AI in Motion
-            </span>
+      <Link href="/">
+        <SidebarHeader className="border-b border-sidebar-border">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/kinetik-application-logo.png"
+                alt="Kinetik Logo"
+                width={36}
+                height={36}
+                className="w-9 h-9"
+              />
+              {state === "expanded" && (
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold tracking-tight">
+                    Kinetik
+                  </span>
+                  <span className="text-xs text-sidebar-foreground/60">
+                    AI in Motion
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </SidebarHeader>
+        </SidebarHeader>
+      </Link>
 
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-2 py-2">
         <SidebarMenu className="space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
@@ -81,7 +92,7 @@ export default function AppSidebar() {
                     <Icon
                       className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
                     />
-                    <span>{item.label}</span>
+                    {state === "expanded" && <span>{item.label}</span>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -91,7 +102,10 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border mt-auto">
-        <SidebarMenu className="px-2 py-4 space-y-1">
+        <UserDisplay user={user} isLoading={isLoading} />
+
+        {/* Footer Menu Items */}
+        <SidebarMenu className="px-2 py-2 space-y-1">
           {footerItems.map((item) => {
             const Icon = item.icon;
 
@@ -103,7 +117,7 @@ export default function AppSidebar() {
                 >
                   <Link href={item.href} className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    {state === "expanded" && <span>{item.label}</span>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

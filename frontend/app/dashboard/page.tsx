@@ -16,20 +16,18 @@ export default function Dashboard() {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted/20 font-sans">
-      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+    <div className="flex-1 p-6 bg-gradient-to-b from-background to-muted/20">
+      <div className=" mx-auto">
         {/* Header */}
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">
-            Dashboard
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">
             Manage your workflows and automations from one central hub
           </p>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card
             className="workflow-card group cursor-pointer hover:scale-[1.02] transition-transform"
             onClick={() => router.push("/workflow")}
@@ -107,26 +105,24 @@ export default function Dashboard() {
 
         {/* Get Started Section */}
         <Card className="border-dashed">
-          <CardContent className="p-12 text-center">
-            <div className="flex flex-col items-center gap-6 max-w-2xl mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="flex flex-col items-center gap-4 max-w-xl mx-auto">
               <div className="relative">
-                <div className="absolute inset-0 blur-3xl bg-gradient-to-r from-primary/20 via-workflow-action/20 to-workflow-trigger/20 rounded-full" />
-                <div className="relative rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-6 shadow-2xl shadow-primary/20">
-                  <Workflow className="h-12 w-12 text-primary-foreground" />
+                <div className="rounded-xl bg-gradient-to-br from-primary to-primary/80 p-4 shadow-lg shadow-primary/20">
+                  <Workflow className="h-8 w-8 text-primary-foreground" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Ready to automate?</h2>
-                <p className="text-muted-foreground">
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold">Ready to automate?</h2>
+                <p className="text-sm text-muted-foreground">
                   Create your first workflow and start automating your processes
-                  today
                 </p>
               </div>
-              <Button asChild size="lg" className="mt-2 shadow-lg">
+              <Button asChild size="default" className="shadow-lg">
                 <Link href="/workflow">
-                  <Workflow className="mr-2 h-5 w-5" />
+                  <Workflow className="mr-2 h-4 w-4" />
                   Create Workflow
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>

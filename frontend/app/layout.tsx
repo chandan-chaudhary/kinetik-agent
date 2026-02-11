@@ -4,6 +4,7 @@ import "./globals.css";
 import "@xyflow/react/dist/style.css";
 import { Toaster } from "sonner";
 import QueryProvider from "@/components/QueryProvider";
+import { UserProvider } from "@/contexts/UserContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,7 +61,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} font-sans antialiased`}
       >
         <QueryProvider>
-          <div className="relative min-h-screen flex flex-col">{children}</div>
+          <UserProvider>
+            <div className="relative min-h-screen flex flex-col">
+              {children}
+            </div>
+          </UserProvider>
         </QueryProvider>
         <Toaster
           position="top-right"

@@ -11,6 +11,7 @@ import llmConfig from './config/llm.config';
 import { LlmModule } from './llm/llm.module';
 import { LanggraphController } from './llm/langgraph/langgraph.controller';
 import { TelegramService } from './telegram-bot/telegram-bot.service';
+import { AuthModule } from './auth/auth.module';
 import marketApiConfig from './config/market-api.config';
 
 @Module({
@@ -25,6 +26,7 @@ import marketApiConfig from './config/market-api.config';
     LlmModule,
     WorkflowModule,
     JobBotModule,
+    AuthModule,
   ],
   controllers: [AppController, LanggraphController],
   providers: [AppService, DatabaseNodesService, TelegramService],

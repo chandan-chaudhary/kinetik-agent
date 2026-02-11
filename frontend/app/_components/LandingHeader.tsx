@@ -1,8 +1,13 @@
+"use client";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
+import { useUser } from "@/contexts/UserContext";
+import { UserDisplay } from "@/components/UserDisplay";
 
 const Header = () => {
   const navLinks = ["Home", "Services", "Features", "Pricing", "Contact"];
+  const { user, isLoading } = useUser();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
@@ -32,9 +37,17 @@ const Header = () => {
           ))}
         </nav>
 
-        <Button variant="default" size="sm" className="font-medium">
-          Get Support
-        </Button>
+        {isLoading ? (
+          <div className="w-20 h-9 bg-muted/50 rounded animate-pulse" />
+        ) : user ? (
+          <UserDisplay user={user} isLoading={isLoading} variant="header" />
+        ) : (
+          <Link href="/login">
+            <Button variant="default" size="sm" className="font-medium">
+              Login
+            </Button>
+          </Link>
+        )}
       </div>
     </header>
   );

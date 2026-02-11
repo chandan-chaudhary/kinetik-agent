@@ -8,6 +8,7 @@ import {
   Param,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { WorkflowService } from './workflow.service';
 import { Prisma } from '@prisma/client';
@@ -15,7 +16,9 @@ import { WorkflowExecutorService } from './workflow-executor.service';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { GraphResult, StateType } from 'src/config/schemas';
+import { AuthGuard } from '@nestjs/passport';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('workflow')
 export class WorkflowController {
   constructor(
