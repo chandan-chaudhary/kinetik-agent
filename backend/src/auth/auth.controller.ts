@@ -61,11 +61,18 @@ export class AuthController {
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Req() request: Request,
   ) {
-    const user = request.user as {
-      userId: string;
-      email: string;
-      name?: string;
-    };
+    const user = request.user!;
     return this.authService.updatePassword(user.userId, updatePasswordDto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+    return { message: 'Logged out successfully' };
   }
 }

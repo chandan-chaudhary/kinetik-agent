@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
 
@@ -29,6 +30,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
+  const { refreshUser } = useUser();
   const router = useRouter();
 
   const {
@@ -42,6 +44,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     const success = await login(data);
     if (success) {
+      await refreshUser();
       router.push("/dashboard");
     }
   };

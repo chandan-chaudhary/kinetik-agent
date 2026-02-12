@@ -10,7 +10,7 @@ import { NodeType, Prisma } from '@prisma/client';
 @Injectable()
 export class WorkflowService {
   constructor(private prisma: PrismaService) {}
-  async create(data: Prisma.WorkflowCreateInput) {
+  async create(data: Prisma.WorkflowCreateInput, userId: string) {
     try {
       if (!data.name || data.name.trim() === '') {
         throw new BadRequestException('Workflow name is required');
@@ -26,6 +26,7 @@ export class WorkflowService {
         data: {
           ...data,
           nodes: { create: nodes },
+          user: { connect: { id: userId } },
         },
         include: {
           nodes: true,
@@ -40,9 +41,12 @@ export class WorkflowService {
     }
   }
 
-  async findAll() {
+  async findAll(userId: string) {
     try {
       return await this.prisma.workflow.findMany({
+        where: {
+          userId: userId, // Replace with actual user ID from auth context
+        },
         include: {
           nodes: true,
           connections: true,
@@ -57,14 +61,14 @@ export class WorkflowService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     try {
       if (!id || id.trim() === '') {
         throw new BadRequestException('Workflow ID is required');
       }
 
       const workflow = await this.prisma.workflow.findUnique({
-        where: { id },
+        where: { id, userId: userId },
         include: {
           nodes: true,
           connections: true,
@@ -88,7 +92,7 @@ export class WorkflowService {
     }
   }
 
-  async update(id: string, data: Prisma.WorkflowUpdateInput) {
+  async update(id: string, data: Prisma.WorkflowUpdateInput, userId: string) {
     try {
       if (!id || id.trim() === '') {
         throw new BadRequestException('Workflow ID is required');
@@ -97,7 +101,7 @@ export class WorkflowService {
       return await this.prisma.$transaction(async (tx) => {
         // Check if workflow exists
         const existingWorkflow = await tx.workflow.findUnique({
-          where: { id },
+          where: { id, userId: userId },
           select: { id: true },
         });
 
@@ -114,8 +118,10 @@ export class WorkflowService {
 
         // Delete existing nodes and connections in parallel
         await Promise.all([
-          tx.node.deleteMany({ where: { workflowId: id } }),
-          tx.connection.deleteMany({ where: { workflowId: id } }),
+          tx.node.deleteMany({ where: { workflowId: existingWorkflow.id } }),
+          tx.connection.deleteMany({
+            where: { workflowId: existingWorkflow.id },
+          }),
         ]);
 
         // Create new nodes using createMany for better performance
@@ -123,7 +129,7 @@ export class WorkflowService {
           const nodeData = (newNodes as Prisma.NodeCreateManyInput[]).map(
             (node) => ({
               ...node,
-              workflowId: id,
+              workflowId: existingWorkflow.id,
             }),
           );
           if (nodeData.length > 0) {
@@ -137,7 +143,7 @@ export class WorkflowService {
             newConnections as Prisma.ConnectionCreateManyInput[]
           ).map((conn) => ({
             ...conn,
-            workflowId: id,
+            workflowId: existingWorkflow.id,
           }));
           if (connectionData.length > 0) {
             await tx.connection.createMany({ data: connectionData });
@@ -147,14 +153,14 @@ export class WorkflowService {
         // Update the workflow with any other data and return with relations
         if (Object.keys(otherData).length > 0) {
           await tx.workflow.update({
-            where: { id },
+            where: { id, userId: userId },
             data: otherData,
           });
         }
 
         // Return the updated workflow with all relations
         return await tx.workflow.findUnique({
-          where: { id },
+          where: { id, userId: userId },
           include: { nodes: true, connections: true },
         });
       });
@@ -170,7 +176,7 @@ export class WorkflowService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     try {
       if (!id || id.trim() === '') {
         throw new BadRequestException('Workflow ID is required');
@@ -178,7 +184,7 @@ export class WorkflowService {
 
       // Check if workflow exists before deleting
       const workflow = await this.prisma.workflow.findUnique({
-        where: { id },
+        where: { id, userId: userId },
         select: { id: true },
       });
 

@@ -6,7 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { UserDisplay } from "@/components/UserDisplay";
 
 const Header = () => {
-  const navLinks = ["Home", "Services", "Features", "Pricing", "Contact"];
+  const navLinks = ["Services", "Features", "Pricing", "Contact"];
   const { user, isLoading } = useUser();
 
   return (
@@ -27,13 +27,13 @@ const Header = () => {
 
         <nav className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link}
               href={`#${link.toLowerCase()}`}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               {link}
-            </a>
+            </Link>
           ))}
         </nav>
 

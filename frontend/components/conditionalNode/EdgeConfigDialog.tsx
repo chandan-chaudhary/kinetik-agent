@@ -46,7 +46,9 @@ export function EdgeConfigDialog({
   const [operator, setOperator] = useState<EdgeCondition["operator"]>(
     initialCondition?.operator || "exists",
   );
-  const [value, setValue] = useState(initialCondition?.value || "");
+  const [value, setValue] = useState<string>(
+    (initialCondition?.value as string) || "",
+  );
   const [priority, setPriority] = useState(initialPriority);
 
   const handleSave = () => {

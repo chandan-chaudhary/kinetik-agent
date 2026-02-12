@@ -71,10 +71,7 @@ export class AuthService {
       }
 
       // Compare password
-      const isPasswordValid = await bcrypt.compare(
-        password,
-        user.password as string,
-      );
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials');
       }
@@ -110,7 +107,7 @@ export class AuthService {
       // Verify current password
       const isCurrentPasswordValid = await bcrypt.compare(
         currentPassword,
-        user.password as string,
+        user.password,
       );
       if (!isCurrentPasswordValid) {
         throw new UnauthorizedException('Current password is incorrect');

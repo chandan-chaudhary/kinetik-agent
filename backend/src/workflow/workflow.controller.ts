@@ -9,6 +9,7 @@ import {
   HttpException,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { WorkflowService } from './workflow.service';
 import { Prisma } from '@prisma/client';
@@ -17,6 +18,7 @@ import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { GraphResult, StateType } from 'src/config/schemas';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('workflow')
@@ -27,9 +29,22 @@ export class WorkflowController {
   ) {}
 
   @Post()
-  async create(@Body() data: Prisma.WorkflowCreateInput) {
+  async create(
+    @Body() data: Prisma.WorkflowCreateInput,
+    @Req() request: Request,
+  ) {
     try {
-      const result = await this.workflowService.create(data);
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Assigning default userId.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.workflowService.create(data, userId);
       return result;
     } catch (error) {
       console.error('Error creating workflow:', error);
@@ -41,9 +56,19 @@ export class WorkflowController {
   }
 
   @Get()
-  async findAll() {
+  async findAll(@Req() request: Request) {
     try {
-      const result = await this.workflowService.findAll();
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to fetch workflows.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.workflowService.findAll(userId);
       return result;
     } catch (error) {
       console.error('Error fetching workflows:', error);
@@ -55,9 +80,19 @@ export class WorkflowController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Req() request: Request) {
     try {
-      const result = await this.workflowService.findOne(id);
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to fetch workflows.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.workflowService.findOne(id, userId);
       return result;
     } catch (error) {
       console.error('Error fetching workflow:', error);
@@ -71,9 +106,20 @@ export class WorkflowController {
   async update(
     @Param('id') id: string,
     @Body() data: Prisma.WorkflowUpdateInput,
+    @Req() request: Request,
   ) {
     try {
-      const result = await this.workflowService.update(id, data);
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to update workflow.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.workflowService.update(id, data, userId);
       console.log(result);
       return result;
     } catch (error) {
@@ -86,9 +132,19 @@ export class WorkflowController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Req() request: Request) {
     try {
-      const result = await this.workflowService.remove(id);
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to delete workflow.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const result = await this.workflowService.remove(id, userId);
       return result;
     } catch (error) {
       console.error('Error deleting workflow:', error);
@@ -107,12 +163,22 @@ export class WorkflowController {
   async execute(
     @Param('id') id: string,
     @Body() body: { prompt: string },
+    @Req() request: Request,
   ): Promise<any> {
     try {
       console.log(`🚀 Executing workflow ${id} with prompt: ${body.prompt}`);
-
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to execute workflow.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
       // Load workflow from database
-      const workflow = await this.workflowService.findOne(id);
+      const workflow = await this.workflowService.findOne(id, userId);
 
       if (!workflow) {
         throw new HttpException(
@@ -227,6 +293,7 @@ export class WorkflowController {
       approved: boolean;
       feedback?: string;
     },
+    @Req() request: Request,
   ): Promise<any> {
     try {
       console.log(
@@ -234,7 +301,21 @@ export class WorkflowController {
       );
 
       // Load workflow from database
-      const workflow = await this.workflowService.findOne(body.workflowId);
+      const userId = request.user?.userId;
+      if (!userId) {
+        console.warn(
+          '⚠️  No user information found in request. Unable to resume workflow execution.',
+        );
+        throw new HttpException(
+          'User not authenticated',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const workflow = await this.workflowService.findOne(
+        body.workflowId,
+        userId,
+      );
 
       if (!workflow) {
         throw new HttpException(

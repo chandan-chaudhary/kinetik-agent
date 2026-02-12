@@ -223,7 +223,6 @@ function CreateWorkflowSheet({
     const payload: Workflow = {
       name: name.trim(),
       description: description.trim(),
-      userId: "default-user",
     };
 
     createMutation.mutate(payload, {

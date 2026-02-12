@@ -9,6 +9,11 @@ interface RegisterData {
   password: string;
 }
 
+interface LoginData {
+  email: string;
+  password: string;
+}
+
 interface UpdatePasswordData {
   currentPassword: string;
   newPassword: string;
@@ -41,7 +46,7 @@ export const useAuth = () => {
         return true;
       }
       return false;
-    } catch (error: any) {
+    } catch (error) {
       const message = error.response?.data?.message || "Registration failed";
       toast.error(message);
       return false;
@@ -64,7 +69,7 @@ export const useAuth = () => {
         return true;
       }
       return false;
-    } catch (error: any) {
+    } catch (error) {
       const message = error.response?.data?.message || "Login failed";
       toast.error(message);
       return false;
@@ -99,7 +104,7 @@ export const useAuth = () => {
         return true;
       }
       return false;
-    } catch (error: any) {
+    } catch (error) {
       const message =
         error.response?.data?.message || "Failed to update password";
       toast.error(message);
@@ -108,16 +113,18 @@ export const useAuth = () => {
       setIsLoading(false);
     }
   };
-  
+
   const logout = async (): Promise<void> => {
     try {
-      // Clear cookies by making a request that might handle logout
-      // Since we're using httpOnly cookies, we might need a logout endpoint
-      document.cookie =
-        "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      await axios.post(
+        `${API_BASE_URL}auth/logout`,
+        {},
+        { withCredentials: true },
+      );
       toast.success("Logged out successfully");
     } catch (error) {
-      toast.error("Logout failed");
+      const message = error.response?.data?.message || "Logout failed";
+      toast.error(message);
     }
   };
   return {

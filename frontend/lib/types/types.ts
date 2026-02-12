@@ -33,7 +33,7 @@ export interface EdgeCondition {
     | "contains"
     | "starts_with"
     | "ends_with";
-  value?: any; // Value to compare against (not needed for exists/not_exists)
+  value?: unknown; // Value to compare against (not needed for exists/not_exists)
 }
 
 export interface User {
@@ -43,7 +43,7 @@ export interface User {
 
 export interface Workflow {
   id?: string;
-  userId: string;
+  userId?: string;
   user?: User;
   name: string;
   description?: string | null;
