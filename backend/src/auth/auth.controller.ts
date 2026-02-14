@@ -8,7 +8,8 @@ import {
   Res,
   Inject,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '@/types/auth.types';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -54,7 +55,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
-  getProfile(@Req() request: Request) {
+  getProfile(@Req() request: AuthenticatedRequest) {
     const user = request.user; // Contains payload from JwtStrategy.validate()
     return { user };
   }
@@ -99,7 +100,7 @@ export class AuthController {
   @Post('update-password')
   async updatePassword(
     @Body() updatePasswordDto: UpdatePasswordDto,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     const user = request.user!;
     return this.authService.updatePassword(user.userId, updatePasswordDto);

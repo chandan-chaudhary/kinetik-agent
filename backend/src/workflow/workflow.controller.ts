@@ -18,7 +18,7 @@ import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { GraphResult, StateType } from 'src/config/schemas';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request } from 'express';
+import type { AuthenticatedRequest } from '@/types/auth.types';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('workflow')
@@ -31,7 +31,7 @@ export class WorkflowController {
   @Post()
   async create(
     @Body() data: Prisma.WorkflowCreateInput,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     try {
       const userId = request.user?.userId;
@@ -56,7 +56,7 @@ export class WorkflowController {
   }
 
   @Get()
-  async findAll(@Req() request: Request) {
+  async findAll(@Req() request: AuthenticatedRequest) {
     try {
       const userId = request.user?.userId;
       if (!userId) {
@@ -80,7 +80,7 @@ export class WorkflowController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Req() request: Request) {
+  async findOne(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
     try {
       const userId = request.user?.userId;
       if (!userId) {
@@ -106,7 +106,7 @@ export class WorkflowController {
   async update(
     @Param('id') id: string,
     @Body() data: Prisma.WorkflowUpdateInput,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     try {
       const userId = request.user?.userId;
@@ -132,7 +132,7 @@ export class WorkflowController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Req() request: Request) {
+  async remove(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
     try {
       const userId = request.user?.userId;
       if (!userId) {
@@ -163,7 +163,7 @@ export class WorkflowController {
   async execute(
     @Param('id') id: string,
     @Body() body: { prompt: string },
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ): Promise<any> {
     try {
       console.log(`🚀 Executing workflow ${id} with prompt: ${body.prompt}`);
@@ -293,7 +293,7 @@ export class WorkflowController {
       approved: boolean;
       feedback?: string;
     },
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ): Promise<any> {
     try {
       console.log(

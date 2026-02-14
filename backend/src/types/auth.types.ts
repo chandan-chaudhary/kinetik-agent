@@ -1,13 +1,9 @@
-import { Request } from 'express';
-
 export interface AuthenticatedUser {
   userId: string;
   email: string;
   name?: string;
 }
 
-declare module 'express' {
-  interface Request {
-    user?: AuthenticatedUser;
-  }
+export interface AuthenticatedRequest extends Request {
+  user?: AuthenticatedUser;
 }
