@@ -9,6 +9,7 @@ import * as z from "zod";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,19 +18,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const llmNodeSchema = z.object({
-  model: z.string().min(1, "Model is required"),
+  model: z.enum([
+    "gpt-4",
+    "gpt-3.5-turbo",
+    "claude-3-opus",
+    "claude-3-sonnet",
+    "claude-3-haiku",
+  ]),
   temperature: z.number().min(0).max(2),
   systemPrompt: z.string().min(1, "System prompt is required"),
   maxAttempts: z.number().int().min(1, "Max attempts must be at least 1"),
 });
 
-type LLMNodeData = {
-  model: string;
-  temperature: number;
-  systemPrompt: string;
-  maxAttempts: number;
+type LLMNodeData = z.infer<typeof llmNodeSchema> & {
   [key: string]: unknown;
 };
 type LLMNodeType = Node<LLMNodeData>;
@@ -42,7 +52,7 @@ export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
   const form = useForm<z.infer<typeof llmNodeSchema>>({
     resolver: zodResolver(llmNodeSchema),
     defaultValues: {
-      model: LLMNodeData.model || "",
+      model: LLMNodeData.model || "gpt-4",
       temperature: LLMNodeData.temperature || 0.7,
       systemPrompt: LLMNodeData.systemPrompt || "",
       maxAttempts: LLMNodeData.maxAttempts || 3,
@@ -74,9 +84,32 @@ export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Model</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., gpt-4" {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a model" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="gpt-4">GPT-4</SelectItem>
+                      <SelectItem value="gpt-3.5-turbo">
+                        GPT-3.5 Turbo
+                      </SelectItem>
+                      <SelectItem value="claude-3-opus">
+                        Claude 3 Opus
+                      </SelectItem>
+                      <SelectItem value="claude-3-sonnet">
+                        Claude 3 Sonnet
+                      </SelectItem>
+                      <SelectItem value="claude-3-haiku">
+                        Claude 3 Haiku
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Choose the LLM model to use</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

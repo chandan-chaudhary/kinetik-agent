@@ -6,6 +6,7 @@ import {
   Get,
   UseGuards,
   Res,
+  Inject,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -13,10 +14,43 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import type { ConfigType } from '@nestjs/config';
+import authConfig from '@/config/auth.config';
+
+function parseExpiryToMs(exp: string): number {
+  if (!exp) return 3600000; // default 1 hour
+  const v = exp.trim();
+  // examples: '3600s', '1h', '15m', '3600000' (ms), '3600'
+  if (/^\d+$/.test(v)) {
+    // interpret as seconds
+    return parseInt(v, 10) * 1000;
+  }
+  if (v.endsWith('ms')) {
+    const n = parseInt(v.slice(0, -2), 10);
+    return Number.isNaN(n) ? 3600000 : n;
+  }
+  if (v.endsWith('s')) {
+    const n = parseInt(v.slice(0, -1), 10);
+    return Number.isNaN(n) ? 3600000 : n * 1000;
+  }
+  if (v.endsWith('m')) {
+    const n = parseInt(v.slice(0, -1), 10);
+    return Number.isNaN(n) ? 3600000 : n * 60 * 1000;
+  }
+  if (v.endsWith('h')) {
+    const n = parseInt(v.slice(0, -1), 10);
+    return Number.isNaN(n) ? 3600000 : n * 60 * 60 * 1000;
+  }
+  return 3600000;
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(authConfig.KEY)
+    private readonly authConfigService: ConfigType<typeof authConfig>,
+  ) {}
 
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
@@ -31,11 +65,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.register(registerDto);
+    const jwtExpiry = this.authConfigService.jwtExpiresIn;
+    const cookieMaxAge = parseExpiryToMs(jwtExpiry);
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 3600000, // 1 hour
+      maxAge: cookieMaxAge,
+      path: '/',
     });
     return result;
   }
@@ -46,11 +83,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(loginDto);
+    const jwtExpiry = this.authConfigService.jwtExpiresIn;
+
+    const cookieMaxAge = parseExpiryToMs(jwtExpiry);
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 3600000, // 1 hour
+      maxAge: cookieMaxAge,
     });
     return result;
   }

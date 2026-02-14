@@ -3,6 +3,7 @@ import {
   Database,
   GitBranch,
   Loader2,
+  SearchCodeIcon,
   Settings,
   ShipWheel,
   User,
@@ -30,19 +31,13 @@ export const triggerNode: NodeTypeOptions[] = [
     description: "Trigger workflow based on SQL query events",
     icon: Database,
   },
-  // {
-  //   type: NodeType.JOB_BOT_TRIGGER,
-  //   label: "Job Bot Trigger",
-  //   description: "Trigger workflow based on job bot events",
-  //   icon: BotIcon,
-  // },
 
-  // {
-  //   type: NodeType.TRADING_PRICE_TRIGGER,
-  //   label: "Trading Price Trigger",
-  //   description: "Trigger workflow on trading price changes",
-  //   icon: DollarSign,
-  // },
+  {
+    type: NodeType.MARKET_RESEARCH_TRIGGER,
+    label: "Market Research Trigger",
+    description: "Trigger workflow on market research events",
+    icon: SearchCodeIcon,
+  },
   // {
   //   type: NodeType.TRADING_TIME_TRIGGER,
   //   label: "Trading Time Trigger",
@@ -87,5 +82,20 @@ export const actionNode: NodeTypeOptions[] = [
     label: "SQL Executor Action",
     description: "Run SQL commands against a database",
     icon: Loader2,
+  },
+
+
+// MARKET RESEARCH ACTION NODES
+  {
+    type: NodeType.ASSET_DATA_ACTION,
+    label: "Asset Data Action",
+    description: "Fetch and process asset data for market research",
+    icon: Database, // You can change this icon
+  },
+  {
+    type: NodeType.NEWS_DATA_ACTION,
+    label: "News Data Action",
+    description: "Fetch and analyze news data for market research",
+    icon: SearchCodeIcon, // You can change this icon
   },
 ];

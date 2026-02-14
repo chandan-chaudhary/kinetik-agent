@@ -99,7 +99,7 @@ export default function WorkflowPage() {
                 <Card className="workflow-card group overflow-hidden h-full hover:scale-[1.02] transition-transform duration-200">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 p-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-all">
+                      <div className="rounded-xl bg-linear-to-br from-primary/20 to-primary/5 p-3 group-hover:from-primary/30 group-hover:to-primary/10 transition-all">
                         <WorkflowIcon className="h-6 w-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -153,8 +153,8 @@ export default function WorkflowPage() {
             <CardContent className="p-16 text-center">
               <div className="flex flex-col items-center gap-6 max-w-md mx-auto">
                 <div className="relative">
-                  <div className="absolute inset-0 blur-2xl bg-gradient-to-r from-primary/10 to-workflow-trigger/10 rounded-full" />
-                  <div className="relative rounded-2xl bg-gradient-to-br from-muted to-muted/50 p-6">
+                  <div className="absolute inset-0 blur-2xl bg-linear-to-r from-primary/10 to-workflow-trigger/10 rounded-full" />
+                  <div className="relative rounded-2xl bg-linear-to-br from-muted to-muted/50 p-6">
                     <WorkflowIcon className="h-12 w-12 text-muted-foreground" />
                   </div>
                 </div>

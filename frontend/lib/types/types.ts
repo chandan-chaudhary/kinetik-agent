@@ -8,14 +8,24 @@ export type Json =
 export type DateTime = string;
 
 export enum NodeType {
+  // trigger nodes
   INITIAL = "INITIAL",
-  SQL_QUERY_TRIGGER = "SQL_QUERY_TRIGGER",
+
+  // conditional nodes
   LLM_NODE = "LLM_NODE",
   APPROVAL = "APPROVAL",
   CONDITION = "CONDITION",
-  //action nodes
+  
+  //DATABASE nodes
+  SQL_QUERY_TRIGGER = "SQL_QUERY_TRIGGER",
+
   SQL_GENERATOR_ACTION = "SQL_GENERATOR_ACTION",
   SQL_EXECUTOR_ACTION = "SQL_EXECUTOR_ACTION",
+
+  //MARKET RELATED NODES
+  MARKET_RESEARCH_TRIGGER = "MARKET_RESEARCH_TRIGGER",
+  ASSET_DATA_ACTION = "ASSET_DATA_ACTION",
+  NEWS_DATA_ACTION = "NEWS_DATA_ACTION",
 }
 
 // Condition structure for edges

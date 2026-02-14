@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import "@xyflow/react/dist/style.css";
@@ -25,7 +25,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Nodebase - Visual Workflow Automation",
+  title: "Kinetik - Visual Workflow Automation",
   description:
     "Build, manage, and execute powerful workflows with an intuitive visual interface",
   keywords: [
@@ -35,15 +35,16 @@ export const metadata: Metadata = {
     "no-code",
     "integration",
   ],
-  authors: [{ name: "Nodebase Team" }],
+  authors: [{ name: "Kinetik Team" }],
   icons: {
     icon: "/favicon.ico",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
