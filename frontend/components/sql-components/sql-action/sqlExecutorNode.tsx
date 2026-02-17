@@ -36,7 +36,7 @@ export const SqlExecutorNode = memo((props: NodeProps<SqlExecutorNodeType>) => {
         {...props}
         id={props.id}
         name="SQL Executor Node"
-        description="Generate SQL queries using LLM"
+        description="Execute queries"
         icon={Database}
         status={status}
         onSettings={handleSettings}

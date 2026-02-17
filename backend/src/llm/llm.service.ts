@@ -1,10 +1,10 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import llmConfig from 'src/config/llm.config';
+import llmConfig from '@/config/llm.config';
 import { ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { GraphResult, StateType } from 'src/config/schemas';
+import { GraphResult, StateType } from '@/config/schemas';
 import { LanggraphService } from './langgraph/langgraph.service';
 // import { ChatOllama } from '@langchain/ollama';
 import { ChatGroq } from '@langchain/groq';

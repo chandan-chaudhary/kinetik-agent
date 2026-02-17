@@ -6,7 +6,7 @@ import {
   END,
   type GraphNode,
 } from '@langchain/langgraph';
-import { stateSchema } from 'src/config/schemas';
+import { stateSchema } from '@/config/schemas';
 import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { NodeType, Prisma } from '@prisma/client';
 import { LlmService } from '@/llm/llm.service';

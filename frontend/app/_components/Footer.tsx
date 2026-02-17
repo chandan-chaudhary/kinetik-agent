@@ -5,7 +5,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-12">
           <div>
             <span className="text-2xl font-bold tracking-tight">
-              GENAI<span className="text-primary">✦</span>
+             Kinetik
             </span>
             <p className="mt-4 text-background/70 text-sm">
               Empowering businesses with intelligent automation and seamless integration.

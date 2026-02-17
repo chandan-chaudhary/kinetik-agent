@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { StateGraph, START, MemorySaver, END } from '@langchain/langgraph';
-import { stateSchema } from 'src/config/schemas';
+import { stateSchema } from '@/config/schemas';
 import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
 import { LlmService } from '../llm.service';
 import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
@@ -21,7 +21,7 @@ export class LanggraphService {
     private readonly llmService: LlmService,
   ) {}
 
-  initDatabaseGraph() {
+  initDatabaseGraph(): any {
     const databse = 'DATABASE_URL_PLACEHOLDER';
     const graph = new StateGraph(stateSchema)
       .addNode('schema', this.dbNodesService.getSchemaNode(databse))
@@ -60,7 +60,7 @@ export class LanggraphService {
     return graph;
   }
 
-  initMarketGraph() {
+  initMarketGraph(): any {
     const graph = new StateGraph(marketSchema)
       .addNode('marketData', this.marketNodesService.getMarketData())
       .addNode('scrapeNews', tavilyTool)

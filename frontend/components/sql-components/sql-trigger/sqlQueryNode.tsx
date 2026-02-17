@@ -3,6 +3,11 @@ import { BaseTriggerNode } from "@/components/base-trigger-node";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { Database } from "lucide-react";
 import CustomDialog from "@/components/CutomDialog";
+import { toast } from "sonner";
+import {
+  validateRequiredFields,
+  getNodeDescription,
+} from "@/lib/node-validation";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,9 +27,9 @@ import { Button } from "@/components/ui/button";
 const schemaConfigSchema = z.object({
   databaseUrl: z
     .string()
-    .optional()
+    .min(1, "Database URL is required")
     .refine(
-      (val) => !val || val.startsWith("postgresql://"),
+      (val) => val.startsWith("postgresql://"),
       "Must be a valid PostgreSQL connection string",
     ),
 });
@@ -38,7 +43,15 @@ type SchemaNodeType = Node<SchemaNodeData>;
 export const SqlQueryNode = memo((props: NodeProps<SchemaNodeType>) => {
   const { setNodes } = useReactFlow();
   const [openDialog, setOpenDialog] = useState(false);
-  const status = "initial";
+  const status = 'initial';
+
+  const requiredFields = ["databaseUrl"];
+  const baseDescription = "Fetch database schema";
+  const description = getNodeDescription(
+    baseDescription,
+    props.data,
+    requiredFields,
+  );
 
   const schemaNodeData = props.data as SchemaNodeData;
 
@@ -51,7 +64,20 @@ export const SqlQueryNode = memo((props: NodeProps<SchemaNodeType>) => {
 
   function onSubmit(values: z.infer<typeof schemaConfigSchema>) {
     console.log("Schema Node Config:", values, props.id);
-    // TODO: Update node data with form values
+
+    // Validate required fields
+    const validation = validateRequiredFields(values, [
+      { field: "databaseUrl", label: "Database URL" },
+    ]);
+
+    if (!validation.isValid) {
+      toast.error(
+        `Please fill in all required fields: ${validation.missingFields.join(", ")}`,
+      );
+      return;
+    }
+
+    // Update node data with form values
     setNodes((prevNodes) =>
       prevNodes.map((node) =>
         node.id === props.id
@@ -88,7 +114,7 @@ export const SqlQueryNode = memo((props: NodeProps<SchemaNodeType>) => {
               name="databaseUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Database URL (Optional)</FormLabel>
+                  <FormLabel>Database URL</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="postgresql://user:password@host:5432/database"
@@ -96,8 +122,7 @@ export const SqlQueryNode = memo((props: NodeProps<SchemaNodeType>) => {
                     />
                   </FormControl>
                   <FormDescription>
-                    Leave empty to use the default environment variable. Format:
-                    postgresql://user:password@host:port/database
+                    Format: postgresql://user:password@host:port/database
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -121,7 +146,7 @@ export const SqlQueryNode = memo((props: NodeProps<SchemaNodeType>) => {
         {...props}
         id={props.id}
         name="Schema Node"
-        description="Fetch database schema"
+        description={description}
         icon={Database}
         status={status}
         onSettings={handleSettings}

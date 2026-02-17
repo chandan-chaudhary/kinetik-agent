@@ -3,7 +3,7 @@ import { type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { BaseNode, BaseNodeContent } from "./react-flow/base-node";
 import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
-import { WorkFlowNode } from "@/app/workflow/_components/workflowNode";
+import { WorkFlowNode } from "@/app/(routes)/workflow/_components/workflowNode";
 import { BaseHandle } from "./react-flow/base-handle";
 import {
   NodeStatus,

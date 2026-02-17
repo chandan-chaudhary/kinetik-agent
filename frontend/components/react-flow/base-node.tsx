@@ -9,6 +9,7 @@ interface BaseNodeProps extends ComponentProps<"div"> {
 export function BaseNode({ className, status, ...props }: BaseNodeProps) {
   return (
     <div
+      {...props}
       className={cn(
         "bg-card text-card-foreground relative rounded-md border",
         "hover:ring-1",

@@ -32,7 +32,7 @@ export const SqlGeneratorNode = memo(
           {...props}
           id={props.id}
           name="SQL Generator Node"
-          description="Generate SQL queries using LLM"
+          description="Generate SQL queries"
           icon={Database}
           status={status}
           onSettings={handleSettings}

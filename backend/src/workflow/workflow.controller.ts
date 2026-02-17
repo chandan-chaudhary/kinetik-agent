@@ -16,7 +16,7 @@ import { Prisma } from '@prisma/client';
 import { WorkflowExecutorService } from './workflow-executor.service';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
-import { GraphResult, StateType } from 'src/config/schemas';
+import { GraphResult, StateType } from '@/config/schemas';
 import { AuthGuard } from '@nestjs/passport';
 import type { AuthenticatedRequest } from '@/types/auth.types';
 

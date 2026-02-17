@@ -6,14 +6,14 @@ import {
   interrupt,
 } from '@langchain/langgraph';
 import { Injectable } from '@nestjs/common';
-import { getClient, getDbSchema, stateSchema } from 'src/config/schemas';
+import { getClient, getDbSchema, stateSchema } from '@/config/schemas';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 import {
   sqlExecutorMsg,
   // schemaSystemMessage,
   SQLGeneratorSystemMessage,
-} from 'src/config/messagePrompts';
+} from '@/config/messagePrompts';
 
 @Injectable()
 export class DatabaseNodesService {

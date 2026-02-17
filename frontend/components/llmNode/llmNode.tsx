@@ -1,8 +1,13 @@
 import { memo, useState } from "react";
 import { BaseActionNode } from "@/components/base-action-node";
-import { Node, NodeProps } from "@xyflow/react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { ShipWheel } from "lucide-react";
 import CustomDialog from "@/components/CutomDialog";
+import { toast } from "sonner";
+import {
+  validateRequiredFields,
+  getNodeDescription,
+} from "@/lib/node-validation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -45,9 +50,19 @@ type LLMNodeData = z.infer<typeof llmNodeSchema> & {
 type LLMNodeType = Node<LLMNodeData>;
 
 export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
+  const { setNodes } = useReactFlow();
   const [openDialog, setOpenDialog] = useState(false);
   const LLMNodeData = props.data as LLMNodeData;
-  const status = "initial";
+
+  const status = 'initial';
+
+  const requiredFields = ["model", "systemPrompt"];
+  const baseDescription = "Process data using Large Language Models";
+  const description = getNodeDescription(
+    baseDescription,
+    props.data,
+    requiredFields,
+  );
 
   const form = useForm<z.infer<typeof llmNodeSchema>>({
     resolver: zodResolver(llmNodeSchema),
@@ -64,8 +79,29 @@ export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
   }
 
   function onSubmit(values: z.infer<typeof llmNodeSchema>) {
-    console.log(values);
-    // TODO: Update node data with form values
+    console.log("LLM Node Config:", values, props.id);
+
+    // Validate required fields
+    const validation = validateRequiredFields(values, [
+      { field: "model", label: "Model" },
+      { field: "systemPrompt", label: "System Prompt" },
+    ]);
+
+    if (!validation.isValid) {
+      toast.error(
+        `Please fill in all required fields: ${validation.missingFields.join(", ")}`,
+      );
+      return;
+    }
+
+    // Update node data with form values
+    setNodes((prevNodes) =>
+      prevNodes.map((node) =>
+        node.id === props.id
+          ? { ...node, data: { ...node.data, ...values } }
+          : node,
+      ),
+    );
     setOpenDialog(false);
   }
   return (
@@ -192,7 +228,7 @@ export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
         {...props}
         id={props.id}
         name="LLM Node"
-        description="Add llm to use in entire flow"
+        description={description}
         icon={ShipWheel}
         status={status}
         onSettings={handleSettings}

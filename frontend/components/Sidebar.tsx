@@ -29,7 +29,7 @@ const navigationItems = [
   { href: "/workflow", label: "Workflows", icon: Workflow },
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/credentials", label: "Credentials", icon: KeyIcon },
-  { href: "/billing", label: "Billing Portal", icon: CreditCard },
+  // { href: "/billing", label: "Billing Portal", icon: CreditCard },
 ];
 
 const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
