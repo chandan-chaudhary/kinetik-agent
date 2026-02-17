@@ -86,7 +86,7 @@ export const useAuth = () => {
       );
       return response.data.user;
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch user profile");
+      console.log("Failed to fetch user profile");
       return null;
     }
   };
@@ -122,7 +122,7 @@ export const useAuth = () => {
         {},
         { withCredentials: true },
       );
-      toast.success("Logged out successfully");
+      // toast.success("Logged out successfully");
     } catch (error) {
       const message = error.response?.data?.message || "Logout failed";
       toast.error(message);

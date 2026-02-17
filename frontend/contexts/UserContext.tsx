@@ -79,7 +79,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false; // Cleanup function
     };
-  }, [getProfile]);
+  }, []); // Empty dependency array - only run on mount
 
   return (
     <UserContext.Provider value={{ user, isLoading, refreshUser, logout }}>
