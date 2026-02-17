@@ -86,6 +86,7 @@ export const useAuth = () => {
       );
       return response.data.user;
     } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch user profile");
       return null;
     }
   };

@@ -31,19 +31,55 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     setIsLoading(true);
-    const profile = await getProfile();
-    setUser(profile);
-    setIsLoading(false);
+    try {
+      const profile = await getProfile();
+      setUser(profile);
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = async () => {
-    await authLogout();
-    setUser(null);
+    try {
+      await authLogout();
+      setUser(null);
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setUser(null); // Clear user even if logout request fails
+    }
   };
 
+  // Proper pattern for initial data fetching
   useEffect(() => {
-    refreshUser();
-  }, []);
+    let isMounted = true; // Prevent state updates if component unmounts
+
+    const initializeUser = async () => {
+      try {
+        const profile = await getProfile();
+        if (isMounted) {
+          setUser(profile);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeUser();
+
+    return () => {
+      isMounted = false; // Cleanup function
+    };
+  }, [getProfile]);
 
   return (
     <UserContext.Provider value={{ user, isLoading, refreshUser, logout }}>

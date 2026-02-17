@@ -68,7 +68,7 @@ export function UserDisplay({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2 hover:bg-accent rounded-md px-3 py-2 transition-colors">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
               <UserIcon className="w-4 h-4 text-white" />
             </div>
             <div className="hidden sm:flex flex-col items-start">
@@ -103,7 +103,7 @@ export function UserDisplay({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent rounded-md p-2 transition-colors">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
               <UserIcon className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0 text-left">

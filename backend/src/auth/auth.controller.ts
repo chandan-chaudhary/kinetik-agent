@@ -68,12 +68,16 @@ export class AuthController {
     const result = await this.authService.register(registerDto);
     const jwtExpiry = this.authConfigService.jwtExpiresIn;
     const cookieMaxAge = parseExpiryToMs(jwtExpiry);
+
+    // More flexible cookie settings for production
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      //&& process.env.HTTPS_ENABLED === 'true',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: cookieMaxAge,
       path: '/',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     return result;
   }
@@ -90,8 +94,11 @@ export class AuthController {
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      //&&  process.env.HTTPS_ENABLED === 'true',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: cookieMaxAge,
+      path: '/',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     return result;
   }
@@ -112,7 +119,10 @@ export class AuthController {
     res.clearCookie('access_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      // && process.env.HTTPS_ENABLED === 'true',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     return { message: 'Logged out successfully' };
   }
