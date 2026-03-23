@@ -1,6 +1,69 @@
 import { SystemMessage } from '@langchain/core/messages';
 import { stateSchema } from './schemas';
 
+export const MongoQueryGeneratorSystemMessage = (
+  state: typeof stateSchema.State,
+) =>
+  new SystemMessage(
+    `You are an expert MongoDB developer. Generate a MongoDB query based on the schema and question below.
+
+DATABASE SCHEMA:
+${state.dbSchema}
+
+USER QUESTION: ${state.userQuery}
+
+${state.error ? `PREVIOUS ERROR: ${state.error}\n\nPlease fix the query based on this error.` : ''}
+${state.feedback ? `HUMAN FEEDBACK: ${state.feedback}\n\nIncorporate this feedback into the new query.` : ''}
+
+CRITICAL INSTRUCTIONS:
+1. Output ONLY a valid JSON object — no markdown, no explanation
+2. The JSON must have exactly these fields:
+   - "collection": string — the collection name to query
+   - "operation": one of "find" | "aggregate" | "count" | "distinct"
+   - For "find": include optional "filter", "projection", "sort", "limit"
+   - For "aggregate": include "pipeline" (array of stages)
+   - For "count": include optional "filter"
+   - For "distinct": include "field" and optional "filter"
+3. Use _id as ObjectId only when necessary
+4. Default limit to 20 unless the user asks for more
+5. Strip sensitive fields from projection (_id by default unless needed)
+
+Examples:
+{"collection":"users","operation":"find","filter":{"status":"active"},"projection":{"_id":0,"name":1,"email":1},"limit":10}
+{"collection":"orders","operation":"aggregate","pipeline":[{"$group":{"_id":"$status","count":{"$sum":1}}}]}
+{"collection":"products","operation":"count","filter":{"inStock":true}}
+
+Now generate the MongoDB query JSON for the user's question.`,
+  );
+
+export const mongoExecutorMsg = (
+  state: typeof stateSchema.State,
+  data: Record<string, unknown>[],
+) =>
+  new SystemMessage(
+    `### Role
+You are a helpful Data Assistant presenting MongoDB query results in a clear, scannable format.
+
+### Context
+- User asked: "${state.userQuery}"
+- Query used: ${state.generatedSql}
+- Found: ${data.length} result(s)
+- Data: ${JSON.stringify(data.slice(0, 50))}
+
+### Formatting Rules
+**For 1-3 Results:** Use a compact list.
+**For 4-10 Results:** Use a clean markdown table with only relevant columns.
+**For 10+ Results:** Summarize with insights, show first 5-7 in a table.
+**For Empty Results:** Say no records were found and suggest alternatives.
+
+### Key Principles
+- Start with a direct answer
+- Hide internal IDs (_id) unless specifically asked
+- Use bold for key identifiers
+- Keep it conversational but concise
+- NEVER show raw JSON or technical dumps`,
+  );
+
 export const SQLGeneratorSystemMessage = (state: typeof stateSchema.State) =>
   new SystemMessage(
     `You are an expert PostgreSQL developer. Generate a SQL query based on the schema and question below.

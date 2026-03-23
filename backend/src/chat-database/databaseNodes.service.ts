@@ -6,22 +6,32 @@ import {
   interrupt,
 } from '@langchain/langgraph';
 import { Injectable } from '@nestjs/common';
-import { getClient, getDbSchema, stateSchema } from '@/config/schemas';
+import {
+  executeMongoQuery,
+  getClient,
+  getDbSchema,
+  getMongoSchema,
+  stateSchema,
+} from '@/config/schemas';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 import {
+  mongoExecutorMsg,
+  MongoQueryGeneratorSystemMessage,
   sqlExecutorMsg,
-  // schemaSystemMessage,
   SQLGeneratorSystemMessage,
 } from '@/config/messagePrompts';
 
 @Injectable()
 export class DatabaseNodesService {
   constructor() {}
-  getSchemaNode(databaseUrl: string): GraphNode<typeof stateSchema> {
+
+  getSchemaNode(
+    databaseUrl?: string,
+    dbType: 'postgres' | 'mongodb' = 'postgres',
+  ): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
-      console.log('🔍 Schema node executing...', databaseUrl);
-      // const messages = state.messages as BaseMessage[];
+      console.log(`🔍 Schema node executing... [${dbType}]`, databaseUrl);
       state.messages.forEach((msg, i) => {
         console.log(
           `Message ${i}:`,
@@ -31,15 +41,17 @@ export class DatabaseNodesService {
         );
       });
       try {
-        const dbSchema = await getDbSchema(databaseUrl);
+        console.log('in schema generating', dbType);
 
-        // Add system prompt first to guide the LLM
-        // const schemaSystemMsg = schemaSystemMessage(dbSchema);
+        const dbSchema =
+          dbType === 'mongodb' && databaseUrl
+            ? await getMongoSchema(databaseUrl)
+            : await getDbSchema(databaseUrl);
         console.log(
           '✅ Schema node completed, schema length:',
           dbSchema.length,
         );
-        return { dbSchema: dbSchema };
+        return { dbSchema };
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : String(error),
@@ -49,8 +61,9 @@ export class DatabaseNodesService {
   }
 
   // GET LLM NODE
-  getLLMNode(llmInstance: BaseChatModel): GraphNode<typeof stateSchema> {
+  getLLMNode(getLLM: () => BaseChatModel): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
+      const llmInstance = getLLM();
       console.log('🤖 LLM node executing...');
       console.log('Messages to LLM:', state.messages.length);
       state.messages.forEach((msg, idx) => {
@@ -74,9 +87,10 @@ export class DatabaseNodesService {
   }
 
   getSQLGeneratorNode(
-    llmInstance: BaseChatModel,
+    getLLM: () => BaseChatModel,
   ): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
+      const llmInstance = getLLM();
       console.log('🧩 SQL Generator node executing...');
       console.log('User question for SQL generation:', state.userQuery);
       console.log('HUMAN feedback for SQL generation:', state.feedback);
@@ -117,12 +131,13 @@ export class DatabaseNodesService {
   }
 
   getSQLExecutorNode(
-    llmInstance: BaseChatModel,
+    getLLM: () => BaseChatModel,
+    databaseUrl?: string,
   ): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
+      const llmInstance = getLLM();
       console.log('🚀 SQL Executor node executing...');
-      // Implementation for executing the generated SQL against the database;
-      const dbClient = await getClient();
+      const dbClient = await getClient(databaseUrl);
       try {
         console.log('✅ SQL Executor node completed');
         const data = await dbClient.query(state.generatedSql);
@@ -152,7 +167,79 @@ export class DatabaseNodesService {
     };
   }
 
-  // Human approval node for SQL validation
+  // ─── MongoDB nodes ────────────────────────────────────────────────────
+
+  getMongoQueryGeneratorNode(
+    getLLM: () => BaseChatModel,
+  ): GraphNode<typeof stateSchema> {
+    return async (state: typeof stateSchema.State) => {
+      const llmInstance = getLLM();
+      console.log('🧩 Mongo Query Generator node executing...');
+      console.log('User question:', state.userQuery);
+      if (state.feedback)
+        console.log('📝 Using human feedback:', state.feedback);
+
+      const systemMessage = MongoQueryGeneratorSystemMessage(state);
+      try {
+        const result = await llmInstance.invoke([systemMessage]);
+        const raw =
+          typeof result.content === 'string' ? result.content.trim() : '';
+        // Strip possible markdown fences
+        const generatedQuery = raw
+          .replace(/^```(?:json)?\n?/, '')
+          .replace(/\n?```$/, '')
+          .trim();
+
+        // Validate it is parseable JSON
+        JSON.parse(generatedQuery);
+
+        console.log('Generated MongoDB query:', generatedQuery);
+        return {
+          messages: [result],
+          generatedSql: generatedQuery, // reuse field to store query JSON
+          error: null,
+          sqlAttempts: (state.sqlAttempts || 0) + 1,
+        };
+      } catch (error) {
+        console.error('Error generating MongoDB query:', error);
+        return {
+          error: error instanceof Error ? error.message : String(error),
+          sqlAttempts: (state.sqlAttempts || 0) + 1,
+        };
+      }
+    };
+  }
+
+  getMongoExecutorNode(
+    getLLM: () => BaseChatModel,
+    databaseUrl?: string,
+  ): GraphNode<typeof stateSchema> {
+    return async (state: typeof stateSchema.State) => {
+      const llmInstance = getLLM();
+      console.log('🚀 Mongo Executor node executing...');
+      if (!databaseUrl) {
+        return { error: 'No MongoDB connection URL provided' };
+      }
+      try {
+        const data = await executeMongoQuery(databaseUrl, state.generatedSql);
+        console.log('✅ Mongo query executed, rows:', data.length);
+        const systemMessage = mongoExecutorMsg(state, data);
+        const result = await llmInstance.invoke([systemMessage]);
+        const queryResult =
+          typeof result.content === 'string'
+            ? result.content
+            : JSON.stringify(result.content);
+        return { messages: [result], queryResult, error: null };
+      } catch (error) {
+        console.error('Error executing MongoDB query:', error);
+        return {
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    };
+  }
+
+  // Human approval node for SQL/Mongo query validation
   approvalNode(nodeId?: string): GraphNode<typeof stateSchema> {
     return (state: typeof stateSchema.State) => {
       console.log('✅ Approval node executing...');
@@ -199,9 +286,9 @@ export class DatabaseNodesService {
           },
         });
       } else {
-        console.log('🔁 Regenerating SQL with feedback');
+        console.log('🔁 Regenerating query with feedback');
         return new Command({
-          goto: nodeId || 'sqlGenerator',
+          goto: nodeId || 'queryGenerator',
           update: {
             approved: false,
             feedback: approval.feedback || null,

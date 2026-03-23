@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NodeStatus } from "../react-flow/node-status-indicator";
 
 const llmNodeSchema = z.object({
   model: z.enum([
@@ -54,10 +55,10 @@ export const LLMNode = memo((props: NodeProps<LLMNodeType>) => {
   const [openDialog, setOpenDialog] = useState(false);
   const LLMNodeData = props.data as LLMNodeData;
 
-  const status = 'initial';
+  const status: NodeStatus = (props.data.status as NodeStatus) || "initial";
 
   const requiredFields = ["model", "systemPrompt"];
-  const baseDescription = "Process data using Large Language Models";
+  const baseDescription = "Process data using LLM";
   const description = getNodeDescription(
     baseDescription,
     props.data,

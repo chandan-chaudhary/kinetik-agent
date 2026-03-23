@@ -25,12 +25,15 @@ import {
 } from "@/lib/types/types";
 
 import "@xyflow/react/dist/style.css";
-import { useWorkflowById, useUpdateWorkflow } from "@/hooks/useWorkflow";
+import {
+  useWorkflowById,
+  useUpdateWorkflow,
+  useWorkflowStream,
+} from "@/hooks/useWorkflow";
 import { nodeComponents } from "./node_components/node-type-components";
 import { AddNodeButton } from "./add-node-button";
 import EntityHeader from "@/components/entity-header";
-import { Save, MessageSquare } from "lucide-react";
-import Link from "next/link";
+import { Save, Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ConditionalEdge,
@@ -38,8 +41,13 @@ import {
 } from "@/components/conditionalNode";
 
 export default function Editor({ workflowId }: { workflowId: string }) {
+  // local state initialised empty; sync when `workflow` changes
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+
   const { data: workflow } = useWorkflowById(workflowId);
   const updateMutation = useUpdateWorkflow();
+  const { startStream, isStreaming } = useWorkflowStream(workflowId, setNodes);
   const [isSaving, setIsSaving] = useState(false);
   const [edgeDialog, setEdgeDialog] = useState<{
     open: boolean;
@@ -52,10 +60,6 @@ export default function Editor({ workflowId }: { workflowId: string }) {
     priority?: number;
   } | null>(null);
   console.log(workflow);
-
-  // local state initialised empty; sync when `workflow` changes
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
 
   useEffect(() => {
     // only update when actual data arrives
@@ -148,6 +152,10 @@ export default function Editor({ workflowId }: { workflowId: string }) {
     });
   }, []);
 
+  const handleExecute = () => {
+    startStream();
+  };
+
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     // Allow editing existing edge conditions
     setEdgeDialog({
@@ -172,12 +180,19 @@ export default function Editor({ workflowId }: { workflowId: string }) {
         isCreating={isSaving}
         icon={Save}
       >
-        <Link href={`/workflow/${workflowId}/chat`}>
-          <Button variant="outline" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Execute
-          </Button>
-        </Link>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={handleExecute}
+          disabled={isStreaming}
+        >
+          {isStreaming ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+          {isStreaming ? "Executing..." : "Execute"}
+        </Button>
       </EntityHeader>
       <div className="flex-1 workflow-canvas relative">
         <ReactFlowProvider>

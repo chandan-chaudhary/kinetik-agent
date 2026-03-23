@@ -3,6 +3,7 @@ import { BaseActionNode } from "../../base-action-node";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { Database } from "lucide-react";
 import CustomDialog from "../../CutomDialog";
+import { getNodeDescription } from "@/lib/node-validation";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import type { NodeStatus } from "@/components/react-flow/node-status-indicator";
 
 const newsDataSchema = z.object({
   provider: z.enum(["alpaca", "alphaVantage"]),
@@ -41,7 +43,15 @@ type NewsDataNodeType = Node<NewsDataNodeData>;
 export const NewsDataNode = memo((props: NodeProps<NewsDataNodeType>) => {
   const { setNodes } = useReactFlow();
   const [openDialog, setOpenDialog] = useState(false);
-  const status = "initial";
+  const status: NodeStatus = (props.data.status as NodeStatus) || "initial";
+
+  const requiredFields = ["provider", "apiKey"];
+  const baseDescription = "Fetch and analyze news data for market research";
+  const description = getNodeDescription(
+    baseDescription,
+    props.data,
+    requiredFields,
+  );
 
   const newsNodeData = props.data as NewsDataNodeData;
 
@@ -161,7 +171,7 @@ export const NewsDataNode = memo((props: NodeProps<NewsDataNodeType>) => {
         {...props}
         id={props.id}
         name="News Data"
-        description="Fetch news data from API"
+        description={description}
         icon={Database}
         status={status}
         onSettings={handleSettings}

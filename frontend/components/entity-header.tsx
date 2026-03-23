@@ -31,16 +31,18 @@ export default function EntityHeader({
 }: EntityHeaderProps) {
   return (
     <div className="sticky top-0 z-50 glass border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 ">
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors" />
-            <div className="flex items-center gap-3">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
+          <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+            <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" />
+            <div className="flex items-start gap-3 sm:items-center">
               <div className="h-px w-6 bg-border hidden sm:block" />
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight leading-tight">
+                  {title}
+                </h1>
                 {description && (
-                  <p className="text-sm text-muted-foreground mt-0.5">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-0.5 leading-snug">
                     {description}
                   </p>
                 )}
@@ -48,7 +50,7 @@ export default function EntityHeader({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {children}
 
             {onNew && !newButtonHref ? (

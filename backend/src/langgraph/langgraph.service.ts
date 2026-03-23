@@ -1,8 +1,8 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { StateGraph, START, MemorySaver, END } from '@langchain/langgraph';
-import { stateSchema } from '@/config/schemas';
-import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
-import { LlmService } from '../llm.service';
+import { stateSchema, CompiledGraph } from '@/config/schemas';
+import { DatabaseNodesService } from '@/chat-database/databaseNodes.service';
+import { LlmService } from '../llm/llm.service';
 import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
 import { marketSchema } from '@/nodes/trading-node/marketSchema';
 import { tavilyTool } from '@/tools/tavily.tool';
@@ -21,30 +21,46 @@ export class LanggraphService {
     private readonly llmService: LlmService,
   ) {}
 
-  initDatabaseGraph(): any {
-    const databse = 'DATABASE_URL_PLACEHOLDER';
+  initDatabaseGraph(
+    databaseUrl?: string,
+    dbType: 'postgres' | 'mongodb' = 'postgres',
+  ): CompiledGraph {
+    const isPostgres = dbType !== 'mongodb';
+
     const graph = new StateGraph(stateSchema)
-      .addNode('schema', this.dbNodesService.getSchemaNode(databse))
+      .addNode('schema', this.dbNodesService.getSchemaNode(databaseUrl, dbType))
       .addNode(
-        'sqlGenerator',
-        this.dbNodesService.getSQLGeneratorNode(this.llmService.LLM),
+        'queryGenerator',
+        isPostgres
+          ? this.dbNodesService.getSQLGeneratorNode(() => this.llmService.LLM)
+          : this.dbNodesService.getMongoQueryGeneratorNode(
+              () => this.llmService.LLM,
+            ),
       )
       .addNode(
-        'sqlExecutor',
-        this.dbNodesService.getSQLExecutorNode(this.llmService.LLM),
+        'queryExecutor',
+        isPostgres
+          ? this.dbNodesService.getSQLExecutorNode(
+              () => this.llmService.LLM,
+              databaseUrl,
+            )
+          : this.dbNodesService.getMongoExecutorNode(
+              () => this.llmService.LLM,
+              databaseUrl,
+            ),
       )
       .addNode('approval', this.dbNodesService.approvalNode(), {
-        ends: ['sqlGenerator', '__end__'],
+        ends: ['queryGenerator', '__end__'],
       })
 
       .addEdge(START, 'schema')
-      .addEdge('schema', 'sqlGenerator')
-      .addEdge('sqlGenerator', 'sqlExecutor')
+      .addEdge('schema', 'queryGenerator')
+      .addEdge('queryGenerator', 'queryExecutor')
       .addConditionalEdges(
-        'sqlExecutor',
+        'queryExecutor',
         this.dbNodesService.shouldContinueNode(),
         {
-          sqlGenerator: 'sqlGenerator',
+          sqlGenerator: 'queryGenerator',
           approval: 'approval',
           __end__: END,
         },
@@ -52,18 +68,18 @@ export class LanggraphService {
       .compile({
         checkpointer: this.checkpointer,
         interruptBefore: ['approval'],
-      });
+      }) as CompiledGraph;
 
     console.log(
-      '📊 Graph compiled successfully with Command-based approval flow',
+      `📊 Graph compiled [${dbType}] with Command-based approval flow`,
     );
     return graph;
   }
 
-  initMarketGraph(): any {
+  initMarketGraph(): CompiledGraph {
     const graph = new StateGraph(marketSchema)
       .addNode('marketData', this.marketNodesService.getMarketData())
-      .addNode('scrapeNews', tavilyTool)
+      .addNode('scrapeNews', (state) => tavilyTool(state))
       .addNode('sendTelegram', this.telegramService.sendToTelegram())
       .addNode('summarise', (state) =>
         this.marketNodesService.summarizeMarketData(state),
@@ -76,7 +92,7 @@ export class LanggraphService {
       .addEdge('sendTelegram', END)
       .compile({
         checkpointer: this.checkpointer,
-      });
+      }) as CompiledGraph;
     return graph;
   }
 }

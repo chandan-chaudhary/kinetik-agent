@@ -3,6 +3,7 @@ import { BaseTriggerNode } from "@/components/base-trigger-node";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { SearchCodeIcon } from "lucide-react";
 import CustomDialog from "@/components/CutomDialog";
+import { getNodeDescription } from "@/lib/node-validation";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import type { NodeStatus } from "@/components/react-flow/node-status-indicator";
 
 const schemaConfigSchema = z.object({
   ticker: z
@@ -47,7 +49,15 @@ type SchemaNodeType = Node<SchemaNodeData>;
 export const MarketTriggerNode = memo((props: NodeProps<SchemaNodeType>) => {
   const { setNodes } = useReactFlow();
   const [openDialog, setOpenDialog] = useState(false);
-  const status = "initial";
+  const status: NodeStatus = (props.data.status as NodeStatus) || "initial";
+
+  const requiredFields = ["ticker", "type"];
+  const baseDescription = "Trigger workflow on market data changes";
+  const description = getNodeDescription(
+    baseDescription,
+    props.data,
+    requiredFields,
+  );
 
   const schemaNodeData = props.data as SchemaNodeData;
 
@@ -115,8 +125,8 @@ export const MarketTriggerNode = memo((props: NodeProps<SchemaNodeType>) => {
                     <SelectContent>
                       <SelectItem value="crypto">Cryptocurrency</SelectItem>
                       <SelectItem value="stock">Stock</SelectItem>
-                      <SelectItem value="forex">Forex</SelectItem>
-                      <SelectItem value="commodity">Commodity</SelectItem>
+                      {/* <SelectItem value="forex">Forex</SelectItem>
+                      <SelectItem value="commodity">Commodity</SelectItem> */}
                     </SelectContent>
                   </Select>
                   <FormDescription>
@@ -162,7 +172,7 @@ export const MarketTriggerNode = memo((props: NodeProps<SchemaNodeType>) => {
         {...props}
         id={props.id}
         name="Market Trigger"
-        description="Trigger on market data changes"
+        description={description}
         icon={SearchCodeIcon}
         status={status}
         onSettings={handleSettings}

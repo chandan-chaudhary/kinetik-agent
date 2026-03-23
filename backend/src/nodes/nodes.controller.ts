@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Logger, Query } from '@nestjs/common';
-import { DatabaseNodesService } from './databaseNodes.service';
 import { TradingNodeService } from './trading-node/trading-node.service';
 import { AlphaVantageService } from './alpha-vantage/alpha-vantage.service';
 import { tavilyTool } from '@/tools/tavily.tool';
@@ -9,7 +8,6 @@ export class NodesController {
   private readonly logger = new Logger(NodesController.name);
 
   constructor(
-    private readonly databaseNodesService: DatabaseNodesService,
     private readonly tradingNodeService: TradingNodeService,
     private readonly alphaVantageService: AlphaVantageService,
   ) {}
@@ -62,7 +60,7 @@ export class NodesController {
   @Get('test-tavily')
   async testTavily(
     @Query('ticker') ticker: string = 'AAPL',
-    @Query('type') type: 'crypto' | 'stocks' = 'stocks',
+    @Query('type') type: 'crypto' | 'stock' = 'stock',
   ) {
     try {
       const startTime = Date.now();
@@ -70,7 +68,7 @@ export class NodesController {
 
       const result = await tavilyTool({
         userQuery: { ticker, type },
-      } as any);
+      });
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       this.logger.log(`✅ Tavily research completed in ${duration}s`);

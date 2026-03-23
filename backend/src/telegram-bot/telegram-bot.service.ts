@@ -103,10 +103,16 @@ export class TelegramService {
   /**
    * Telegram Node: Formats and sends market data + news to Telegram
    */
-  sendToTelegram(): GraphNode<typeof marketSchema> {
+  sendToTelegram(
+    nodeData: Record<string, unknown> = {},
+  ): GraphNode<typeof marketSchema> {
     return async (state: typeof marketSchema.State) => {
       try {
-        const chatId = this.config.telegramChatId;
+        const chatId =
+          (nodeData.telegramChatId as string | number | undefined) ||
+          this.config.telegramChatId;
+        const botToken =
+          (nodeData.telegramBotToken as string | undefined) || this.botToken;
 
         if (!chatId) {
           this.logger.warn('TELEGRAM_CHAT_ID not configured, skipping send');
@@ -122,12 +128,15 @@ export class TelegramService {
         const formattedMessage = this.formatMarketReport(state);
 
         // Send to Telegram
-        await this.sendMessage({
-          chatId,
-          text: formattedMessage,
-          parseMode: 'HTML',
-          //   disableWebPagePreview: true,
-        });
+        await this.sendMessage(
+          {
+            chatId,
+            text: formattedMessage,
+            parseMode: 'HTML',
+            //   disableWebPagePreview: true,
+          },
+          botToken,
+        );
 
         this.logger.log('Successfully sent market report to Telegram');
 
@@ -148,13 +157,16 @@ export class TelegramService {
    */
   async sendMessage(
     options: TelegramMessageOptions,
+    botTokenOverride?: string,
   ): Promise<TelegramResponse> {
-    if (!this.botToken) {
+    const activeBotToken = botTokenOverride || this.botToken;
+
+    if (!activeBotToken) {
       this.logger.error('TELEGRAM_BOT_TOKEN is not set');
       throw new Error('TELEGRAM_BOT_TOKEN is required');
     }
 
-    const url = `${this.baseUrl}/sendMessage`;
+    const url = `https://api.telegram.org/bot${activeBotToken}/sendMessage`;
 
     // Build request payload according to official API specs
     const payload: Record<string, any> = {
@@ -374,19 +386,20 @@ export class TelegramService {
    * Format a combined market report with data and news
    */
   formatMarketReport(state: MarketStateType): string {
-    // let report = `🚀 <b>MARKET REPORT</b>\n`;
-    // report += `${'═'.repeat(20)}\n\n`;
+    let report = `🚀 <b>MARKET REPORT</b>\n`;
+    report += `${'═'.repeat(20)}\n\n`;
 
-    // report += this.formatMarketData(state.marketLiveData as MarketDataResult);
+    report += this.formatMarketData(state.marketLiveData as MarketDataResult);
 
-    // if (state.news) {
-    //   report += `\n\n${'═'.repeat(20)}\n\n`;
-    //   report += this.formatNewsData(state.news);
-    // }
-    const summarised = state.summarised;
-    console.log('sending to bot', summarised);
+    if (state.news) {
+      report += `\n\n${'═'.repeat(20)}\n\n`;
+      // report += this.formatNewsData(state.news);
+      report += state.summarised?.content as string;
+    }
+    // const summarised = state.summarised?.content as string;
+    console.log('sending to bot', report);
 
-    return JSON.stringify(summarised);
+    return report;
   }
 
   /**

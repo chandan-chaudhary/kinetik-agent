@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NodesController } from './nodes.controller';
-import { NodesService } from './databaseNodes.service';
+import { NodesService } from '../chat-database/databaseNodes.service';
 
 describe('NodesController', () => {
   let controller: NodesController;

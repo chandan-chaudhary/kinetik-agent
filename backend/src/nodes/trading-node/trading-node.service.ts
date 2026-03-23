@@ -60,17 +60,59 @@ export class TradingNodeService {
     }
   }
 
-  getMarketData(): GraphNode<typeof marketSchema> {
+  private buildAlpacaClient(nodeData: Record<string, unknown>): Alpaca {
+    const keyId =
+      (nodeData.alpacaApiKey as string | undefined) ||
+      this.marketApiSettings.alpacaApiKey;
+    const secretKey =
+      (nodeData.alpacaApiSecret as string | undefined) ||
+      this.marketApiSettings.alpacaApiSecret;
+
+    const paperFromNode = nodeData.alpacaPaper;
+    const paper =
+      typeof paperFromNode === 'boolean'
+        ? paperFromNode
+        : String(paperFromNode).toLowerCase() === 'true';
+    const feed = (nodeData.alpacaFeed as string | undefined) || 'iex';
+
+    return new Alpaca({
+      keyId,
+      secretKey,
+      paper,
+      feed,
+    });
+  }
+
+  getMarketData(
+    nodeData: Record<string, unknown> = {},
+  ): GraphNode<typeof marketSchema> {
     return async (state: typeof marketSchema.State) => {
-      const isCrypto = state.userQuery?.type === 'crypto';
+      const configuredTicker =
+        (nodeData.searchTicker as string | undefined) ||
+        (nodeData.ticker as string | undefined) ||
+        state.userQuery?.ticker;
+      const configuredType =
+        (nodeData.searchType as string | undefined) ||
+        (nodeData.type as string | undefined) ||
+        state.userQuery?.type;
+      const alpacaClient = this.buildAlpacaClient(nodeData);
+
+      if (!configuredTicker) {
+        throw new Error('Ticker is required in node data or user query');
+      }
+
+      const isCrypto = configuredType === 'crypto';
       if (isCrypto) {
         const result = await this.getCryptoMarketData({
-          ticker: state.userQuery?.ticker,
+          ticker: configuredTicker,
+          alpacaClient,
         });
         return { marketLiveData: result };
       } else {
         const result = await this.getStockMarketData({
-          ticker: state.userQuery?.ticker,
+          ticker: configuredTicker,
+          alpacaClient,
+          feed: (nodeData.alpacaFeed as string | undefined) || 'iex',
         });
         return { marketLiveData: result };
       }
@@ -219,25 +261,31 @@ export class TradingNodeService {
    */
   async getStockMarketData({
     ticker,
+    alpacaClient,
+    feed,
   }: {
     ticker: string;
+    alpacaClient?: Alpaca;
+    feed?: string;
   }): Promise<MarketDataResult> {
     try {
+      const client = alpacaClient || this.alpaca;
+      const selectedFeed = feed || 'iex';
       this.logger.log(`🚀 Fetching deep market data for ${ticker}...`);
 
       // 1. Get Snapshot with IEX feed (free tier)
-      const snapshot = await this.alpaca.getSnapshot(ticker);
+      const snapshot = await client.getSnapshot(ticker);
 
       const stockBarOptions = {
         start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         end: new Date().toISOString(),
-        timeframe: this.alpaca.newTimeframe(1, this.alpaca.timeframeUnit.DAY),
-        feed: 'iex', // ← Add this!
+        timeframe: client.newTimeframe(1, client.timeframeUnit.DAY),
+        feed: selectedFeed,
         limit: 20,
       };
 
       // 2. Get Historical Bars with IEX feed
-      const barsRequest = this.alpaca.getBarsV2(ticker, stockBarOptions);
+      const barsRequest = client.getBarsV2(ticker, stockBarOptions);
 
       const closePrices: number[] = [];
 
@@ -275,17 +323,20 @@ export class TradingNodeService {
   }
   async getCryptoMarketData({
     ticker,
+    alpacaClient,
   }: {
     ticker: string;
+    alpacaClient?: Alpaca;
   }): Promise<MarketDataResult> {
     try {
+      const client = alpacaClient || this.alpaca;
       // Ensure proper crypto pair format (e.g., "BTC/USD")
       const cryptoPair = ticker; //ticker.includes('/') ? ticker : `${ticker}/USD`;
 
       this.logger.log(`🚀 Fetching crypto market data for ${cryptoPair}...`);
 
       // 1. Get Crypto Snapshots (note: returns a Map with symbols as keys)
-      const snapshots = await this.alpaca.getCryptoSnapshots([cryptoPair]);
+      const snapshots = await client.getCryptoSnapshots([cryptoPair]);
       console.log(snapshots);
 
       // Extract the snapshot for our specific crypto pair using Map.get()
@@ -297,10 +348,10 @@ export class TradingNodeService {
       const CryptoOptions = {
         start: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
         end: new Date().toISOString(),
-        timeframe: this.alpaca.newTimeframe(1, this.alpaca.timeframeUnit.DAY),
+        timeframe: client.newTimeframe(1, client.timeframeUnit.DAY),
       };
       // 2. Get Historical Crypto Bars (Last 20 days)
-      const barsRequest = await this.alpaca.getCryptoBars(
+      const barsRequest = await client.getCryptoBars(
         [cryptoPair],
         CryptoOptions,
       );
@@ -363,6 +414,7 @@ export class TradingNodeService {
 
   async summarizeMarketData(
     state: typeof marketSchema.State,
+    nodeData: Record<string, unknown> = {},
   ): Promise<Partial<MarketStateType>> {
     const newsContent = state?.news?.content as string;
     const marketData = state?.marketLiveData as MarketDataResult; // Your interface
@@ -383,13 +435,17 @@ export class TradingNodeService {
   --- NEWS CONTENT ---
   ${newsContent}
   `;
+    const nodeInstruction =
+      (nodeData.summaryInstruction as string | undefined) || '';
+    const finalPrompt = nodeInstruction
+      ? `${dataString}\n\n--- EXTRA INSTRUCTION ---\n${nodeInstruction}`
+      : dataString;
     const systemPrompt = new SystemMessage(marketSystemPrompt);
-    const humanMessage = new HumanMessage(dataString);
-    // Standard LangChain/LLM invocation
-    const result = await this.llmService.LLM.invoke([
-      systemPrompt,
-      humanMessage,
-    ]);
+    const humanMessage = new HumanMessage(finalPrompt);
+    // Build an LLM instance from nodeData so user-provided API credentials
+    // (provider / model / apiKey) are used instead of the global env default.
+    const llm = await this.llmService.getLLMInstance(nodeData);
+    const result = await llm.invoke([systemPrompt, humanMessage]);
 
     return { messages: [result], summarised: result };
   }

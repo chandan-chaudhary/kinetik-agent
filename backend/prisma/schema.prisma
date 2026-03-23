@@ -26,13 +26,39 @@ datasource db {
 // }
 
 model User {
-    id        String     @id @default(auto()) @map("_id") @db.ObjectId
-    email     String     @unique
+    id          String       @id @default(auto()) @map("_id") @db.ObjectId
+    email       String       @unique
+    name        String
+    password    String
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    workflows   Workflow[]
+    credentials Credential[]
+}
+
+enum CredentialType {
+    LLM
+    MARKET
+    DATABASE
+    OTHER
+}
+
+model Credential {
+    id        String         @id @default(auto()) @map("_id") @db.ObjectId
+    userId    String         @db.ObjectId
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    type      CredentialType @default(LLM)
     name      String
-    password  String
-    createdAt DateTime   @default(now())
-    updatedAt DateTime   @updatedAt
-    workflows Workflow[]
+    provider  String
+    model     String?
+    apiKey    String?
+    metadata  Json?          @default("{}")
+    isActive  Boolean        @default(true)
+    createdAt DateTime       @default(now())
+    updatedAt DateTime       @updatedAt
+
+    @@index([userId])
+    @@index([userId, type, provider])
 }
 
 model Workflow {
@@ -56,6 +82,7 @@ enum NodeType {
     MARKET_RESEARCH_TRIGGER
     ASSET_DATA_ACTION
     NEWS_DATA_ACTION
+    TELEGRAM_ACTION
 
     LLM_NODE
     SQL_GENERATOR_ACTION

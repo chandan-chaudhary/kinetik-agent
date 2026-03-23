@@ -4,6 +4,7 @@ import {
   GitBranch,
   Loader2,
   SearchCodeIcon,
+  Send,
   Settings,
   ShipWheel,
   User,
@@ -25,12 +26,12 @@ export const triggerNode: NodeTypeOptions[] = [
   //   icon: MouseIcon,
   // },
 
-  {
-    type: NodeType.SQL_QUERY_TRIGGER,
-    label: "SQL Query Trigger",
-    description: "Trigger workflow based on SQL query events",
-    icon: Database,
-  },
+  // {
+  //   type: NodeType.SQL_QUERY_TRIGGER,
+  //   label: "SQL Query Trigger",
+  //   description: "Trigger workflow based on SQL query events",
+  //   icon: Database,
+  // },
 
   {
     type: NodeType.MARKET_RESEARCH_TRIGGER,
@@ -47,45 +48,44 @@ export const triggerNode: NodeTypeOptions[] = [
 ];
 
 export const actionNode: NodeTypeOptions[] = [
-  {
-    type: NodeType.CONDITION,
-    label: "Condition",
-    description: "Branch workflow based on a condition (if/else)",
-    icon: GitBranch,
-  },
   // {
-  //   type: NodeType.SHOULD_CONTINUE,
-  //   label: "Conditional Node",
-  //   description: "Route workflow based on conditions",
-  //   icon: Waypoints,
+  //   type: NodeType.CONDITION,
+  //   label: "Condition",
+  //   description: "Branch workflow based on a condition (if/else)",
+  //   icon: GitBranch,
   // },
- {
-    type: NodeType.APPROVAL,
-    label: "Approval",
-    description: "Require human approval before continuing",
-    icon: User, // You can change this icon
-  },
+  // // {
+  // //   type: NodeType.SHOULD_CONTINUE,
+  // //   label: "Conditional Node",
+  // //   description: "Route workflow based on conditions",
+  // //   icon: Waypoints,
+  // // },
+  // {
+  //   type: NodeType.APPROVAL,
+  //   label: "Approval",
+  //   description: "Require human approval before continuing",
+  //   icon: User, // You can change this icon
+  // },
   {
     type: NodeType.LLM_NODE,
     label: "LLM Node",
     description: "Integrate Large Language Models into your workflow",
     icon: ShipWheel,
   },
-  {
-    type: NodeType.SQL_GENERATOR_ACTION,
-    label: "SQL Generator Action",
-    description: "Generate SQL statements dynamically",
-    icon: Settings,
-  },
-  {
-    type: NodeType.SQL_EXECUTOR_ACTION,
-    label: "SQL Executor Action",
-    description: "Run SQL commands against a database",
-    icon: Loader2,
-  },
+  // {
+  //   type: NodeType.SQL_GENERATOR_ACTION,
+  //   label: "SQL Generator Action",
+  //   description: "Generate SQL statements dynamically",
+  //   icon: Settings,
+  // },
+  // {
+  //   type: NodeType.SQL_EXECUTOR_ACTION,
+  //   label: "SQL Executor Action",
+  //   description: "Run SQL commands against a database",
+  //   icon: Loader2,
+  // },
 
-
-// MARKET RESEARCH ACTION NODES
+  // MARKET RESEARCH ACTION NODES
   {
     type: NodeType.ASSET_DATA_ACTION,
     label: "Asset Data Action",
@@ -96,6 +96,12 @@ export const actionNode: NodeTypeOptions[] = [
     type: NodeType.NEWS_DATA_ACTION,
     label: "News Data Action",
     description: "Fetch and analyze news data for market research",
-    icon: SearchCodeIcon, // You can change this icon
+    icon: SearchCodeIcon,
+  },
+  {
+    type: NodeType.TELEGRAM_ACTION,
+    label: "Telegram Action",
+    description: "Send market summaries to a Telegram chat or channel",
+    icon: Send,
   },
 ];

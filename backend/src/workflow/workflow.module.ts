@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { WorkflowService } from './workflow.service';
 import { WorkflowController } from './workflow.controller';
-import { WorkflowExecutorService } from './workflow-executor.service';
-import { DatabaseNodesService } from '@/nodes/databaseNodes.service';
+import { WorkflowGraphExecutionService } from './workflow-graph-execution.service';
 import { LlmModule } from '@/llm/llm.module';
+import { NodesModule } from '@/nodes/nodes.module';
 
 @Module({
-  imports: [LlmModule],
+  imports: [LlmModule, NodesModule],
   controllers: [WorkflowController],
-  providers: [WorkflowService, WorkflowExecutorService, DatabaseNodesService],
+  providers: [WorkflowService, WorkflowGraphExecutionService],
 })
 export class WorkflowModule {}

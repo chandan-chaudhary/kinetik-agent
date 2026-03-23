@@ -5,25 +5,37 @@ import {
   //   TavilySearch,
 } from '@langchain/tavily';
 import { MarketStateType } from '@/nodes/trading-node/marketSchema';
-const research = new TavilyResearch({
-  tavilyApiKey: process.env.TAVILY_API_KEY!,
-  model: 'mini',
-  citationFormat: 'apa',
-});
-
-const finalResult = new TavilyGetResearch({
-  tavilyApiKey: process.env.TAVILY_API_KEY!,
-});
 
 export async function tavilyTool(
   state:
     | MarketStateType
-    | { userQuery: { ticker: 'BTC/USD'; type: 'crypto' | 'stocks' } },
+    | { userQuery: { ticker: string; type: 'crypto' | 'stock' } },
+  nodeData: Record<string, unknown> = {},
 ): Promise<Partial<MarketStateType>> {
   const { ticker, type } = state.userQuery;
 
+  const tavilyApiKey =
+    (nodeData.tavilyApiKey as string | undefined) || process.env.TAVILY_API_KEY;
+  const queryTemplate =
+    (nodeData.tavilyQueryTemplate as string | undefined) ||
+    'Latest article or news about {ticker} {type} price';
+
+  const research = new TavilyResearch({
+    tavilyApiKey: tavilyApiKey!,
+    model: 'mini',
+    citationFormat: 'apa',
+  });
+
+  const finalResult = new TavilyGetResearch({
+    tavilyApiKey: tavilyApiKey!,
+  });
+
+  const input = queryTemplate
+    .replaceAll('{ticker}', ticker)
+    .replaceAll('{type}', type);
+
   const report = (await research.invoke({
-    input: `Latest article or news about ${ticker} ${type} price`,
+    input,
   })) as Record<string, unknown>;
   console.log('report', report);
 

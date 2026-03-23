@@ -5,7 +5,7 @@ export const marketSchema = new StateSchema({
   messages: MessagesValue,
   userQuery: z.object({
     ticker: z.string(),
-    type: z.enum(['crypto', 'stocks']),
+    type: z.enum(['crypto', 'stock']),
   }),
   marketLiveData: z.record(z.string(), z.any()).optional(),
   news: z.record(z.string(), z.any()).optional(),

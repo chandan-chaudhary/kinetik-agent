@@ -1,17 +1,17 @@
 import { MessagesValue, StateSchema } from '@langchain/langgraph';
 import { Pool } from 'pg';
+import { MongoClient } from 'mongodb';
 import llmConfig from './llm.config';
 import z from 'zod';
 
 let pool: Pool | null = null;
 
 const getPool = (databaseUrl?: string) => {
+  console.log('connect ', databaseUrl);
+
   if (!pool) {
     pool = new Pool({
-      connectionString:
-        databaseUrl ||
-        process.env.SQL_DATABASE_URL ||
-        llmConfig().sqlDatabaseUrl,
+      connectionString: databaseUrl || llmConfig().sqlDatabaseUrl,
     });
   }
   return pool;
@@ -37,7 +37,7 @@ interface EnumRow {
   enum_value: string;
 }
 
-export const getDbSchema = async (databaseUrl: string) => {
+export const getDbSchema = async (databaseUrl?: string) => {
   // console.log(
   //   'SQL_DATABASE_URL:',
   //   process.env.SQL_DATABASE_URL ? 'Found' : 'Not found',
@@ -142,3 +142,128 @@ export type GraphResult<T = any> = T & {
   }>;
 };
 export type StateType = typeof stateSchema.State;
+
+// ─── MongoDB ──────────────────────────────────────────────────────────────────
+
+export const getMongoSchema = async (databaseUrl: string): Promise<string> => {
+  if (!databaseUrl) {
+    return 'Database schema not available: no connection URL provided';
+  }
+  let client: MongoClient | null = null;
+  try {
+    client = new MongoClient(databaseUrl);
+    await client.connect();
+    const db = client.db(); // uses the db in the connection string
+    const collections = await db.listCollections().toArray();
+
+    if (collections.length === 0) {
+      return 'No collections found in the database';
+    }
+
+    const schemaParts: string[] = [];
+    for (const col of collections) {
+      const sampleDocs = await db
+        .collection(col.name)
+        .find()
+        .limit(3)
+        .toArray();
+
+      if (sampleDocs.length === 0) {
+        schemaParts.push(`Collection: ${col.name}\n  (empty)`);
+        continue;
+      }
+
+      // Infer fields + types from sample docs
+      const fieldMap: Record<string, Set<string>> = {};
+      for (const doc of sampleDocs) {
+        for (const [key, val] of Object.entries(doc)) {
+          if (!fieldMap[key]) fieldMap[key] = new Set();
+          fieldMap[key].add(val === null ? 'null' : typeof val);
+        }
+      }
+
+      const fields = Object.entries(fieldMap)
+        .map(([k, types]) => `${k} (${[...types].join('|')})`)
+        .join(', ');
+
+      schemaParts.push(`Collection: ${col.name}\nFields: ${fields}`);
+    }
+
+    console.log('MongoDB schema fetched successfully');
+    return schemaParts.join('\n\n');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    return `Database schema not available: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+  } finally {
+    await client?.close();
+  }
+};
+
+export const executeMongoQuery = async (
+  databaseUrl: string | undefined,
+  queryJson: string,
+): Promise<Record<string, unknown>[]> => {
+  if (!databaseUrl) {
+    throw new Error('MongoDB connection URL is required');
+  }
+  let client: MongoClient | null = null;
+  try {
+    client = new MongoClient(databaseUrl);
+    await client.connect();
+    const db = client.db();
+
+    const q = JSON.parse(queryJson) as {
+      collection: string;
+      operation: 'find' | 'aggregate' | 'count' | 'distinct';
+      filter?: Record<string, unknown>;
+      projection?: Record<string, unknown>;
+      sort?: Record<string, unknown>;
+      limit?: number;
+      pipeline?: Record<string, unknown>[];
+      field?: string; // for distinct
+    };
+
+    const col = db.collection(q.collection);
+
+    switch (q.operation) {
+      case 'find': {
+        const docs = await col
+          .find(q.filter ?? {}, { projection: q.projection })
+          .sort((q.sort as Record<string, 1 | -1> | undefined) ?? {})
+          .limit(q.limit ?? 50)
+          .toArray();
+        return docs as Record<string, unknown>[];
+      }
+      case 'aggregate': {
+        const docs = await col.aggregate(q.pipeline ?? []).toArray();
+        return docs as Record<string, unknown>[];
+      }
+      case 'count': {
+        const count = await col.countDocuments(q.filter ?? {});
+        return [{ count }];
+      }
+      case 'distinct': {
+        if (!q.field) throw new Error('distinct requires a field property');
+        const values = await col.distinct(q.field, q.filter ?? {});
+        return values.map((v) => ({ value: v as unknown }));
+      }
+      default:
+        throw new Error(`Unsupported operation: ${String(q.operation)}`);
+    }
+  } finally {
+    await client?.close();
+  }
+};
+
+/**
+ * Typed wrapper for a compiled LangGraph agent.
+ * Avoids depending on LangGraph internal types that cannot be named.
+ */
+export interface CompiledGraph {
+  invoke(
+    input: Record<string, unknown> | object,
+    config?: { configurable?: Record<string, unknown> },
+  ): Promise<Record<string, unknown>>;
+}

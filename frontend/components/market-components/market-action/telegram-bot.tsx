@@ -1,10 +1,9 @@
 import { memo, useState } from "react";
 import { BaseActionNode } from "../../base-action-node";
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
-import { Database } from "lucide-react";
+import { Send } from "lucide-react";
 import CustomDialog from "../../CutomDialog";
 import { getNodeDescription } from "@/lib/node-validation";
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,57 +18,51 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { NodeStatus } from "@/components/react-flow/node-status-indicator";
 
-const assetDataSchema = z.object({
-  provider: z.enum(["alpaca", "alphaVantage"]),
-  apiKey: z.string().min(1, "API Key is required"),
+const telegramSchema = z.object({
+  chatId: z.string().min(1, "Chat ID is required"),
+  botToken: z.string().min(1, "Bot Token is required"),
+  messageTemplate: z.string().optional(),
 });
 
-type AssetDataNodeData = z.infer<typeof assetDataSchema> & {
+type TelegramNodeData = z.infer<typeof telegramSchema> & {
   [key: string]: unknown;
 };
 
-type AssetDataNodeType = Node<AssetDataNodeData>;
+type TelegramNodeType = Node<TelegramNodeData>;
 
-export const AssetDataNode = memo((props: NodeProps<AssetDataNodeType>) => {
+export const TelegramActionNode = memo((props: NodeProps<TelegramNodeType>) => {
   const { setNodes } = useReactFlow();
   const [openDialog, setOpenDialog] = useState(false);
   const status: NodeStatus = (props.data.status as NodeStatus) || "initial";
 
-  const requiredFields = ["provider", "apiKey"];
-  const baseDescription = "Fetch live asset data from the market API";
+  const requiredFields = ["chatId"];
+  const baseDescription = "Send market summary to a Telegram chat";
   const description = getNodeDescription(
     baseDescription,
     props.data,
     requiredFields,
   );
 
-  const assetNodeData = props.data as AssetDataNodeData;
+  const nodeData = props.data as TelegramNodeData;
 
-  const form = useForm<z.infer<typeof assetDataSchema>>({
-    resolver: zodResolver(assetDataSchema),
+  const form = useForm<z.infer<typeof telegramSchema>>({
+    resolver: zodResolver(telegramSchema),
     defaultValues: {
-      provider: assetNodeData.provider || "alphaVantage",
-      apiKey: assetNodeData.apiKey || "",
+      chatId: nodeData.chatId || "",
+      botToken: nodeData.botToken || "",
+      messageTemplate: nodeData.messageTemplate || "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof assetDataSchema>) {
-    console.log("Asset Data Config:", values, props.id);
-    if (!values.apiKey || !values.provider) {
-      toast.error("Please fill in all required fields");
+  function onSubmit(values: z.infer<typeof telegramSchema>) {
+    if (!values.chatId) {
+      toast.error("Chat ID is required");
       return;
     }
-    // TODO: Update node data with form values
     setNodes((prevNodes) =>
       prevNodes.map((node) =>
         node.id === props.id
@@ -77,18 +70,15 @@ export const AssetDataNode = memo((props: NodeProps<AssetDataNodeType>) => {
           : node,
       ),
     );
+    toast.success("Telegram configuration saved");
     setOpenDialog(false);
-  }
-
-  function handleSettings() {
-    setOpenDialog(true);
   }
 
   return (
     <>
       <CustomDialog
-        title="Asset Data Configuration"
-        description="Configure asset data fetching"
+        title="Telegram Action Configuration"
+        description="Configure the Telegram bot that sends market summaries"
         open={openDialog}
         onOpenChange={setOpenDialog}
       >
@@ -96,38 +86,25 @@ export const AssetDataNode = memo((props: NodeProps<AssetDataNodeType>) => {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="mb-4">
               <h3 className="text-lg font-semibold">
-                Asset data API Configuration
+                Telegram Bot Configuration
               </h3>
               <p className="text-sm text-muted-foreground">
-                Select API provider and provide credentials to fetch live market
-                data
+                Set the target chat and optional bot token override.
               </p>
             </div>
 
             <FormField
               control={form.control}
-              name="provider"
+              name="chatId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>API Provider</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select API provider" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="alphaVantage">
-                        Alpha Vantage
-                      </SelectItem>
-                      <SelectItem value="alpaca">Alpaca</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Chat ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. -1001234567890" {...field} />
+                  </FormControl>
                   <FormDescription>
-                    Choose the market data API provider
+                    The Telegram chat or channel ID where summaries will be
+                    sent.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -136,19 +113,43 @@ export const AssetDataNode = memo((props: NodeProps<AssetDataNodeType>) => {
 
             <FormField
               control={form.control}
-              name="apiKey"
+              name="botToken"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>API Key</FormLabel>
+                  <FormLabel>Bot Token</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Enter your API key"
+                      placeholder="Leave blank to use server env variable"
                       type="password"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    Your API key for the selected provider
+                    Override the default bot token for this node only.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="messageTemplate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Message Template (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Leave blank to use the LLM-generated summary as-is"
+                      className="resize-none"
+                      rows={4}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Wrap the summary in custom text. Use{" "}
+                    <code className="text-xs">{"{{summary}}"}</code> as a
+                    placeholder for the generated content.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -171,15 +172,15 @@ export const AssetDataNode = memo((props: NodeProps<AssetDataNodeType>) => {
       <BaseActionNode
         {...props}
         id={props.id}
-        name="Asset Data"
+        name="Telegram"
         description={description}
-        icon={Database}
+        icon={Send}
         status={status}
-        onSettings={handleSettings}
-        onDoubleClick={handleSettings}
+        onSettings={() => setOpenDialog(true)}
+        onDoubleClick={() => setOpenDialog(true)}
       />
     </>
   );
 });
 
-AssetDataNode.displayName = "AssetDataNode";
+TelegramActionNode.displayName = "TelegramActionNode";
