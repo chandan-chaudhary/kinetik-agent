@@ -5,15 +5,14 @@ import {
   Inject,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-} from 'crypto';
 import { PrismaService } from '@/database/prisma.service';
 import { CredentialType, Prisma } from '@prisma/client';
 import credentialsConfig from '@/config/credentials.config';
+import {
+  deriveAesGcmKey,
+  encryptAesGcm,
+  decryptAesGcm,
+} from '@/common/crypto.util';
 
 type CredentialOutput = {
   id: string;
@@ -39,12 +38,7 @@ export class CredentailsService {
     @Inject(credentialsConfig.KEY)
     private readonly credConfig: ConfigType<typeof credentialsConfig>,
   ) {
-    const secret = this.credConfig.encryptionKey;
-    if (!secret) {
-      throw new Error('Credentail Encryption Key is not set');
-    }
-    // Derive a 32-byte key from the provided secret.
-    this.encryptionKey = createHash('sha256').update(secret).digest();
+    this.encryptionKey = deriveAesGcmKey(this.credConfig.encryptionKey);
   }
 
   async create(
@@ -354,15 +348,7 @@ export class CredentailsService {
 
   // Encrypt API keys before storing and decrypt when retrieving. The encryption format is iv:ciphertext:authTag, all base64-encoded.
   private encryptApiKey(apiKey: string): string {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(apiKey, 'utf8'),
-      cipher.final(),
-    ]);
-    const authTag = cipher.getAuthTag();
-
-    return `${iv.toString('base64')}:${encrypted.toString('base64')}:${authTag.toString('base64')}`;
+    return encryptAesGcm(apiKey, this.encryptionKey);
   }
 
   // Decrypt API keys when retrieving from the database. If decryption fails, return null to avoid exposing the encrypted value.
@@ -372,23 +358,10 @@ export class CredentailsService {
     const parts = apiKey.split(':');
     if (parts.length !== 3) return apiKey; // backwards-compatible: plain text stored previously
 
-    const [iv, encrypted, authTag] = parts;
-
-    try {
-      const decipher = createDecipheriv(
-        'aes-256-gcm',
-        this.encryptionKey,
-        Buffer.from(iv, 'base64'),
-      );
-      decipher.setAuthTag(Buffer.from(authTag, 'base64'));
-      const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(encrypted, 'base64')),
-        decipher.final(),
-      ]);
-      return decrypted.toString('utf8');
-    } catch (error) {
-      console.error('Failed to decrypt API key', error);
-      return null;
+    const decrypted = decryptAesGcm(apiKey, this.encryptionKey);
+    if (decrypted === null) {
+      console.error('Failed to decrypt API key');
     }
+    return decrypted;
   }
 }

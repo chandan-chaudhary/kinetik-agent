@@ -11,7 +11,7 @@ export default function WorkFlowHeader({
   return (
     <>
       <EntityHeader
-        title="Workflow Editor"
+        title="Workflows"
         description="Create and manage your workflows"
         isDisabled={disabled}
         onNew={openCreate}

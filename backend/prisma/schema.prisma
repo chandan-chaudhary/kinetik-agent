@@ -34,6 +34,7 @@ model User {
     updatedAt   DateTime     @updatedAt
     workflows   Workflow[]
     credentials Credential[]
+    chatSessions ChatSession[]
 }
 
 enum CredentialType {
@@ -131,4 +132,19 @@ model Connection {
 
     @@unique([fromNodeId, fromOutput, toNodeId, toInput])
     @@index([workflowId])
+}
+
+model ChatSession {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String   @default("New Chat")
+  threadId    String   @unique  // maps to LangGraph thread_id
+  dbType      String   @default("postgres")
+  databaseUrl String?  // encrypted
+  messages    Json     @default("[]")  // persisted message history for display
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
 }

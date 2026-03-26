@@ -12,6 +12,7 @@ import { LanggraphController } from './langgraph/langgraph.controller';
 import { AuthModule } from './auth/auth.module';
 import { ChatDatabaseModule } from './chat-database/chat-database.module';
 import { CredentailsModule } from './credentails/credentails.module';
+import { ChatSessionModule } from './chat-session/chat-session.module';
 import marketApiConfig from './config/market-api.config';
 import credentialsConfig from './config/credentials.config';
 
@@ -30,6 +31,7 @@ import credentialsConfig from './config/credentials.config';
     AuthModule,
     ChatDatabaseModule,
     CredentailsModule,
+    ChatSessionModule,
   ],
   controllers: [AppController, LanggraphController],
   providers: [AppService],

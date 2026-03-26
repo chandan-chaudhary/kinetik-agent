@@ -14,11 +14,21 @@ export interface DBChatConfig {
   apiKey?: string;
 }
 
+// export interface DBQueryPayload {
+//   prompt: string;
+//   databaseUrl: string;
+//   dbType: string;
+//   // llmProvider/apiKey used when no credentialId is provided; backend will pull provider/model/key from credential when credentialId is set.
+//   llmProvider?: string;
+//   credentialId?: string;
+//   model?: string;
+//   apiKey?: string;
+// }
 export interface DBQueryPayload {
   prompt: string;
+  sessionId: string;          // NEW
   databaseUrl: string;
   dbType: string;
-  // llmProvider/apiKey used when no credentialId is provided; backend will pull provider/model/key from credential when credentialId is set.
   llmProvider?: string;
   credentialId?: string;
   model?: string;

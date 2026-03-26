@@ -20,9 +20,14 @@ const Header = () => {
             height={40}
             className="w-10 h-10"
           />
-          <span className="text-2xl font-bold text-foreground tracking-tight">
-            KINETIK
-          </span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold text-foreground tracking-tight">
+              KINETIK
+            </span>
+            <span className="text-xs text-sidebar-foreground/60">
+              AI in Motion
+            </span>
+          </div>
         </div>
 
         <nav className="hidden md:flex items-center gap-8">

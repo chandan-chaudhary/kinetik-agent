@@ -16,20 +16,20 @@ import {
 import {
   Workflow,
   Activity,
-  CreditCard,
   Home,
   KeyIcon,
   Settings,
+  Database,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { UserDisplay } from "@/components/UserDisplay";
 
 const navigationItems = [
   { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/chat-db", label: "Chat DB", icon: Database },
   { href: "/workflow", label: "Workflows", icon: Workflow },
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/credentials", label: "Credentials", icon: KeyIcon },
-  // { href: "/billing", label: "Billing Portal", icon: CreditCard },
 ];
 
 const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
@@ -54,8 +54,8 @@ export default function AppSidebar() {
               />
               {state === "expanded" && (
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold tracking-tight">
-                    Kinetik
+                  <span className="text-xl font-bold text-foreground tracking-tight">
+                    KINETIK
                   </span>
                   <span className="text-xs text-sidebar-foreground/60">
                     AI in Motion

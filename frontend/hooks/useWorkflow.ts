@@ -217,9 +217,9 @@ export function useWorkflowStream(
     setIsStreaming(true);
 
     // Immediately mark every node as loading so the canvas reacts at once.
-    setNodes((prev) =>
-      prev.map((n) => ({ ...n, data: { ...n.data, status: "loading" } })),
-    );
+    // setNodes((prev) =>
+    //   prev.map((n) => ({ ...n, data: { ...n.data, status: "loading" } })),
+    // );
 
     const url = `${base}workflow/${workflowId}/execute/stream`;
     const es = new EventSource(url, { withCredentials: true });
