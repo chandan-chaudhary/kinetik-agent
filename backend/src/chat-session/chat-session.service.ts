@@ -21,17 +21,47 @@ export interface CreateSessionDto {
   title?: string;
   dbType?: string;
   databaseUrl?: string;
+  llmCredentialId?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  llmApiKey?: string;
 }
 
 export interface UpdateSessionDto {
   title?: string;
   messages?: ChatMessage[];
+  dbType?: string;
+  databaseUrl?: string;
+  llmCredentialId?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  llmApiKey?: string;
 }
 
-type ChatSessionOutput = Omit<ChatSession, 'databaseUrl' | 'messages'> & {
+type ChatSessionOutput = Omit<
+  ChatSession,
+  'databaseUrl' | 'llmApiKey' | 'messages'
+> & {
   databaseUrl: string | null;
+  llmCredentialId: string | null;
+  llmProvider: string | null;
+  llmModel: string | null;
+  llmApiKey: string | null;
   messages: ChatMessage[];
 };
+
+export type ChatSessionSummary = Pick<
+  ChatSessionOutput,
+  | 'id'
+  | 'title'
+  | 'threadId'
+  | 'dbType'
+  // | 'llmCredentialId'
+  // | 'llmProvider'
+  // | 'llmModel'
+  | 'createdAt'
+  | 'updatedAt'
+>;
 
 @Injectable()
 export class ChatSessionService {
@@ -59,18 +89,35 @@ export class ChatSessionService {
         databaseUrl: dto.databaseUrl
           ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
           : null,
+        llmCredentialId: dto.llmCredentialId || null,
+        llmProvider: dto.llmProvider || null,
+        llmModel: dto.llmModel || null,
+        llmApiKey: dto.llmApiKey
+          ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
+          : null,
         messages: [] as Prisma.InputJsonValue,
       },
     });
     return this.toOutput(session);
   }
 
-  async findAll(userId: string): Promise<ChatSessionOutput[]> {
+  async findAll(userId: string): Promise<ChatSessionSummary[]> {
     const sessions = await this.prisma.chatSession.findMany({
       where: { userId },
+      select: {
+        id: true,
+        title: true,
+        threadId: true,
+        dbType: true,
+        // llmCredentialId: true,
+        // llmProvider: true,
+        // llmModel: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { updatedAt: 'desc' },
     });
-    return sessions.map((session) => this.toOutput(session));
+    return sessions;
   }
 
   async findOne(id: string, userId: string): Promise<ChatSessionOutput> {
@@ -139,6 +186,23 @@ export class ChatSessionService {
 
     const updateData: Prisma.ChatSessionUpdateInput = {
       title: dto.title,
+      dbType: dto.dbType,
+      databaseUrl:
+        dto.databaseUrl !== undefined
+          ? dto.databaseUrl
+            ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
+            : null
+          : undefined,
+      llmCredentialId: dto.llmCredentialId,
+      llmProvider:
+        dto.llmProvider !== undefined ? dto.llmProvider || null : undefined,
+      llmModel: dto.llmModel !== undefined ? dto.llmModel || null : undefined,
+      llmApiKey:
+        dto.llmApiKey !== undefined
+          ? dto.llmApiKey
+            ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
+            : null
+          : undefined,
       messages: dto.messages
         ? (dto.messages as unknown as Prisma.InputJsonValue)
         : undefined,
@@ -162,11 +226,35 @@ export class ChatSessionService {
   }
 
   private toOutput(session: ChatSession): ChatSessionOutput {
+    const sessionRecord = session as unknown as Record<string, unknown>;
+    const llmCredentialId =
+      typeof sessionRecord.llmCredentialId === 'string'
+        ? sessionRecord.llmCredentialId
+        : null;
+    const llmProvider =
+      typeof sessionRecord.llmProvider === 'string'
+        ? sessionRecord.llmProvider
+        : null;
+    const llmModel =
+      typeof sessionRecord.llmModel === 'string'
+        ? sessionRecord.llmModel
+        : null;
+    const llmApiKey =
+      typeof sessionRecord.llmApiKey === 'string'
+        ? sessionRecord.llmApiKey
+        : null;
+
     return {
       ...session,
       messages: this.parseMessages(session.messages),
       databaseUrl: session.databaseUrl
         ? decryptAesGcm(session.databaseUrl, this.encryptionKey)
+        : null,
+      llmCredentialId,
+      llmProvider,
+      llmModel,
+      llmApiKey: llmApiKey
+        ? decryptAesGcm(llmApiKey, this.encryptionKey)
         : null,
     };
   }

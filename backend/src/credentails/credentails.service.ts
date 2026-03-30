@@ -1,33 +1,13 @@
-import {
-  Injectable,
-  NotFoundException,
-  InternalServerErrorException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { PrismaService } from '@/database/prisma.service';
-import { CredentialType, Prisma } from '@prisma/client';
+import { CredentialType } from '@prisma/client';
 import credentialsConfig from '@/config/credentials.config';
 import {
   deriveAesGcmKey,
   encryptAesGcm,
   decryptAesGcm,
 } from '@/common/crypto.util';
-
-type CredentialOutput = {
-  id: string;
-  userId: string;
-  name: string;
-  type: CredentialType;
-  provider: string;
-  model: string | null;
-  metadata: unknown;
-  isActive: boolean;
-  hasApiKey: boolean;
-  apiKey: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 @Injectable()
 export class CredentailsService {
@@ -41,83 +21,79 @@ export class CredentailsService {
     this.encryptionKey = deriveAesGcmKey(this.credConfig.encryptionKey);
   }
 
+  // Store
   async create(
     userId: string,
-    createCredentailDto: Prisma.CredentialCreateInput,
+    dto: {
+      name: string;
+      type: string;
+      data: Record<string, unknown>;
+      isActive?: boolean;
+    },
   ) {
-    try {
-      const payload = {
-        ...createCredentailDto,
-        name: createCredentailDto.name.trim(),
-        provider: createCredentailDto.provider.trim().toLowerCase(),
-        model: createCredentailDto.model?.trim() || null,
-        apiKey: createCredentailDto.apiKey
-          ? this.encryptApiKey(createCredentailDto.apiKey.trim())
-          : null,
-        metadata: createCredentailDto.metadata ?? {},
-        isActive: createCredentailDto.isActive ?? true,
+    const encryptedData = this.encrypt(JSON.stringify(dto.data));
+
+    return this.prisma.credential.create({
+      data: {
         userId,
-      };
-
-      if (payload.isActive) {
-        await this.prisma.credential.updateMany({
-          where: {
-            userId,
-            type: payload.type as CredentialType,
-            provider: payload.provider,
-          },
-          data: { isActive: false },
-        });
-      }
-
-      const created = await this.prisma.credential.create({
-        data: {
-          userId,
-          name: payload.name,
-          type: payload.type as CredentialType,
-          provider: payload.provider,
-          model: payload.model,
-          apiKey: payload.apiKey,
-          metadata: payload.metadata,
-          isActive: payload.isActive,
-        },
-      });
-
-      return this.toOutput(created);
-    } catch (error) {
-      console.error('Failed to create credential', error);
-      throw new InternalServerErrorException('Failed to create credential');
-    }
+        name: dto.name.trim(),
+        type: dto.type as CredentialType,
+        data: encryptedData,
+        isActive: dto.isActive ?? true,
+      },
+    });
   }
 
+  // Retrieve — decrypt and return typed fields
   async findAll(userId: string, type?: CredentialType) {
-    const credentials = await this.prisma.credential.findMany({
-      where: {
-        userId,
-        ...(type ? { type } : {}),
-      },
-      orderBy: [{ updatedAt: 'desc' }],
+    const rows = await this.prisma.credential.findMany({
+      where: { userId, ...(type ? { type } : {}) },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    return credentials.map((credential) => this.toOutput(credential));
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      // Return encrypted blob as-is for display (frontend decrypts for reveal)
+      data: row.data,
+      // Expose provider for display without decrypting everything
+      preview: this.extractPreview(row.data, row.type),
+    }));
   }
 
   async findOne(id: string, userId: string) {
-    const credential = await this.prisma.credential.findFirst({
+    const row = await this.prisma.credential.findFirst({
       where: { id, userId },
     });
-
-    if (!credential) {
+    if (!row) {
       throw new NotFoundException('Credential not found');
     }
 
-    return this.toOutput(credential);
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      data: row.data,
+      preview: this.extractPreview(row.data, row.type),
+    };
   }
 
   async update(
     id: string,
     userId: string,
-    updateCredentailDto: Prisma.CredentialUpdateInput,
+    dto: {
+      name?: string;
+      type?: CredentialType;
+      data?: Record<string, unknown>;
+      isActive?: boolean;
+    },
   ) {
     const existing = await this.prisma.credential.findFirst({
       where: { id, userId },
@@ -127,129 +103,75 @@ export class CredentailsService {
       throw new NotFoundException('Credential not found');
     }
 
-    const nextType =
-      (updateCredentailDto.type as CredentialType | undefined) ?? existing.type;
-
-    // provider may be a string or StringFieldUpdateOperationsInput
-    let nextProvider = existing.provider;
-    if (updateCredentailDto.provider !== undefined) {
-      if (typeof updateCredentailDto.provider === 'string') {
-        nextProvider = updateCredentailDto.provider.trim().toLowerCase();
-      } else if (
-        typeof updateCredentailDto.provider === 'object' &&
-        'set' in updateCredentailDto.provider &&
-        typeof updateCredentailDto.provider.set === 'string'
-      ) {
-        nextProvider = updateCredentailDto.provider.set.trim().toLowerCase();
-      }
-    }
-
-    const nextActive =
-      typeof updateCredentailDto.isActive === 'boolean'
-        ? updateCredentailDto.isActive
-        : existing.isActive;
-
-    if (nextActive) {
-      await this.prisma.credential.updateMany({
-        where: {
-          userId,
-          type: nextType,
-          provider: nextProvider,
-          id: { not: id },
-        },
-        data: { isActive: false },
-      });
-    }
-
-    // Build update data safely for Prisma.CredentialUpdateInput
-    const updateData: Prisma.CredentialUpdateInput = {};
-
-    if (updateCredentailDto.name !== undefined) {
-      if (typeof updateCredentailDto.name === 'string') {
-        updateData.name = updateCredentailDto.name.trim();
-      } else if (
-        typeof updateCredentailDto.name === 'object' &&
-        'set' in updateCredentailDto.name &&
-        typeof updateCredentailDto.name.set === 'string'
-      ) {
-        updateData.name = { set: updateCredentailDto.name.set.trim() };
-      } else {
-        updateData.name = updateCredentailDto.name;
-      }
-    }
-
-    if (updateCredentailDto.type !== undefined) {
-      updateData.type = updateCredentailDto.type as CredentialType;
-    }
-
-    if (updateCredentailDto.provider !== undefined) {
-      if (typeof updateCredentailDto.provider === 'string') {
-        updateData.provider = updateCredentailDto.provider.trim().toLowerCase();
-      } else if (
-        typeof updateCredentailDto.provider === 'object' &&
-        'set' in updateCredentailDto.provider &&
-        typeof updateCredentailDto.provider.set === 'string'
-      ) {
-        updateData.provider = {
-          set: updateCredentailDto.provider.set.trim().toLowerCase(),
-        };
-      } else {
-        updateData.provider = updateCredentailDto.provider;
-      }
-    }
-
-    if (updateCredentailDto.model !== undefined) {
-      if (typeof updateCredentailDto.model === 'string') {
-        updateData.model = updateCredentailDto.model.trim() || null;
-      } else if (
-        typeof updateCredentailDto.model === 'object' &&
-        updateCredentailDto.model !== null &&
-        'set' in updateCredentailDto.model &&
-        typeof updateCredentailDto.model.set === 'string'
-      ) {
-        updateData.model = {
-          set: updateCredentailDto.model.set.trim() || null,
-        };
-      } else {
-        updateData.model = updateCredentailDto.model;
-      }
-    }
-
-    if (updateCredentailDto.apiKey !== undefined) {
-      if (typeof updateCredentailDto.apiKey === 'string') {
-        updateData.apiKey = updateCredentailDto.apiKey
-          ? this.encryptApiKey(updateCredentailDto.apiKey.trim())
-          : null;
-      } else if (
-        typeof updateCredentailDto.apiKey === 'object' &&
-        updateCredentailDto.apiKey !== null &&
-        'set' in updateCredentailDto.apiKey &&
-        typeof updateCredentailDto.apiKey.set === 'string'
-      ) {
-        updateData.apiKey = {
-          set: updateCredentailDto.apiKey.set
-            ? this.encryptApiKey(updateCredentailDto.apiKey.set.trim())
-            : null,
-        };
-      } else {
-        updateData.apiKey = updateCredentailDto.apiKey;
-      }
-    }
-
-    if (updateCredentailDto.metadata !== undefined) {
-      updateData.metadata = updateCredentailDto.metadata;
-    }
-
-    if (updateCredentailDto.isActive !== undefined) {
-      updateData.isActive = updateCredentailDto.isActive;
-    }
+    const dataToStore = dto.data
+      ? this.encrypt(JSON.stringify(dto.data))
+      : undefined;
 
     const updated = await this.prisma.credential.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dataToStore !== undefined ? { data: dataToStore } : {}),
+      },
     });
 
-    return this.toOutput(updated);
+    return {
+      id: updated.id,
+      name: updated.name,
+      type: updated.type,
+      isActive: updated.isActive,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+      data: updated.data,
+      preview: this.extractPreview(updated.data, updated.type),
+    };
+  }
+
+  // Used internally by nodes — returns decrypted fields
+  async resolveById(
+    credentialId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const row = await this.prisma.credential.findFirst({
+      where: { id: credentialId, isActive: true },
+    });
+    if (!row) return null;
+
+    try {
+      return JSON.parse(this.decrypt(row.data)) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+
+  // Extract non-sensitive preview fields without full decrypt
+  // Store a plaintext preview separately or decrypt just for provider
+  private extractPreview(encryptedData: string, type: CredentialType): string {
+    try {
+      const data = JSON.parse(this.decrypt(encryptedData)) as Record<
+        string,
+        unknown
+      >;
+
+      const provider = typeof data.provider === 'string' ? data.provider : '';
+      const model = typeof data.model === 'string' ? data.model : undefined;
+
+      switch (type) {
+        case 'LLM':
+          return provider ? `${provider} / ${model ?? '—'}` : '';
+        case 'DATABASE':
+          return provider;
+        case 'API_KEY':
+          return provider;
+        case 'TELEGRAM':
+          return 'Telegram Bot';
+        default:
+          return '';
+      }
+    } catch {
+      return '';
+    }
   }
 
   async remove(id: string, userId: string) {
@@ -266,101 +188,14 @@ export class CredentailsService {
     return { success: true };
   }
 
-  async resolveById(credentialId: string) {
-    const credential = await this.prisma.credential.findFirst({
-      where: {
-        id: credentialId,
-        isActive: true,
-      },
-    });
-
-    if (!credential) return null;
-
-    return {
-      ...credential,
-      apiKey: this.decryptApiKey(credential.apiKey),
-    };
+  private encrypt(value: string): string {
+    return encryptAesGcm(value, this.encryptionKey);
   }
 
-  async resolveActiveByProvider(
-    userId: string,
-    provider: string,
-    type: CredentialType,
-  ) {
-    const credential = await this.prisma.credential.findFirst({
-      where: {
-        userId,
-        provider: provider.trim().toLowerCase(),
-        type,
-        isActive: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    if (!credential) return null;
-
-    return {
-      ...credential,
-      apiKey: this.decryptApiKey(credential.apiKey),
-    };
-  }
-
-  // Convert database credential to output format, encrypting the API key if it exists. The API key is encrypted in the format iv:ciphertext:authTag, all base64-encoded.
-  private toOutput(credential: {
-    id: string;
-    userId: string;
-    name: string;
-    type: CredentialType;
-    provider: string;
-    model: string | null;
-    apiKey: string | null;
-    metadata: unknown;
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  }): CredentialOutput {
-    let apiKeyToSend: string | null = null;
-
-    if (credential.apiKey) {
-      const parts = credential.apiKey.split(':');
-      // If already encrypted (iv:cipher:tag), forward as-is; otherwise encrypt on the fly
-      apiKeyToSend =
-        parts.length === 3
-          ? credential.apiKey
-          : this.encryptApiKey(credential.apiKey);
-    }
-
-    return {
-      id: credential.id,
-      userId: credential.userId,
-      name: credential.name,
-      type: credential.type,
-      provider: credential.provider,
-      model: credential.model,
-      metadata: credential.metadata,
-      isActive: credential.isActive,
-      hasApiKey: Boolean(credential.apiKey),
-      apiKey: apiKeyToSend,
-      createdAt: credential.createdAt,
-      updatedAt: credential.updatedAt,
-    };
-  }
-
-  // Encrypt API keys before storing and decrypt when retrieving. The encryption format is iv:ciphertext:authTag, all base64-encoded.
-  private encryptApiKey(apiKey: string): string {
-    return encryptAesGcm(apiKey, this.encryptionKey);
-  }
-
-  // Decrypt API keys when retrieving from the database. If decryption fails, return null to avoid exposing the encrypted value.
-  private decryptApiKey(apiKey?: string | null): string | null {
-    if (!apiKey) return null;
-
-    const parts = apiKey.split(':');
-    if (parts.length !== 3) return apiKey; // backwards-compatible: plain text stored previously
-
-    const decrypted = decryptAesGcm(apiKey, this.encryptionKey);
+  private decrypt(value: string): string {
+    const decrypted = decryptAesGcm(value, this.encryptionKey);
     if (decrypted === null) {
-      console.error('Failed to decrypt API key');
+      throw new Error('Failed to decrypt credential data');
     }
     return decrypted;
   }

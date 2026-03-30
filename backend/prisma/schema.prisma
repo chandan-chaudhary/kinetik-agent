@@ -26,41 +26,66 @@ datasource db {
 // }
 
 model User {
-    id          String       @id @default(auto()) @map("_id") @db.ObjectId
-    email       String       @unique
-    name        String
-    password    String
-    createdAt   DateTime     @default(now())
-    updatedAt   DateTime     @updatedAt
-    workflows   Workflow[]
-    credentials Credential[]
+    id           String        @id @default(auto()) @map("_id") @db.ObjectId
+    email        String        @unique
+    name         String
+    password     String
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+    workflows    Workflow[]
+    credentials  Credential[]
     chatSessions ChatSession[]
 }
 
 enum CredentialType {
     LLM
-    MARKET
     DATABASE
-    OTHER
+    API_KEY // generic 3rd party — Tavily, Alpha Vantage, etc.
+    OAUTH // future — Google, GitHub, Slack
+    WEBHOOK // inbound webhooks
+    TELEGRAM
 }
 
 model Credential {
-    id        String         @id @default(auto()) @map("_id") @db.ObjectId
-    userId    String         @db.ObjectId
-    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-    type      CredentialType @default(LLM)
-    name      String
-    provider  String
-    model     String?
-    apiKey    String?
-    metadata  Json?          @default("{}")
-    isActive  Boolean        @default(true)
-    createdAt DateTime       @default(now())
-    updatedAt DateTime       @updatedAt
+    id     String @id @default(auto()) @map("_id") @db.ObjectId
+    userId String @db.ObjectId
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    type CredentialType
+    name String // user-given name: "My Prod DB", "Groq Key 1"
+
+    // Encrypted blob — ALL type-specific fields live here
+    // LLM:      { provider, model, apiKey, temperature? }
+    // DATABASE: { provider, dbUrl, ssl?, schema? }
+    // API_KEY:  { provider, apiKey, baseUrl? }
+    // TELEGRAM: { botToken, chatId? }
+    data String // AES-256-GCM encrypted JSON string
+
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
     @@index([userId])
-    @@index([userId, type, provider])
+    @@index([userId, type])
 }
+
+// model Credential {
+//     id        String         @id @default(auto()) @map("_id") @db.ObjectId
+//     userId    String         @db.ObjectId
+//     user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+//     type      CredentialType @default(LLM)
+//     name      String
+//     provider  String
+//     model     String?
+//     apiKey    String?
+//     metadata  Json?          @default("{}")
+//     isActive  Boolean        @default(true)
+//     createdAt DateTime       @default(now())
+//     updatedAt DateTime       @updatedAt
+
+//     @@index([userId])
+//     @@index([userId, type, provider])
+// }
 
 model Workflow {
     id          String       @id @default(auto()) @map("_id") @db.ObjectId
@@ -135,16 +160,20 @@ model Connection {
 }
 
 model ChatSession {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String   @default("New Chat")
-  threadId    String   @unique  // maps to LangGraph thread_id
-  dbType      String   @default("postgres")
-  databaseUrl String?  // encrypted
-  messages    Json     @default("[]")  // persisted message history for display
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    userId      String   @db.ObjectId
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    title       String   @default("New Chat")
+    threadId    String   @unique // maps to LangGraph thread_id
+    dbType      String   @default("postgres")
+    databaseUrl String? // encrypted
+    llmCredentialId String? @db.ObjectId
+    llmProvider  String?
+    llmModel     String?
+    llmApiKey    String? // encrypted (only when user uses custom key)
+    messages    Json     @default("[]") // persisted message history for display
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-  @@index([userId])
+    @@index([userId])
 }

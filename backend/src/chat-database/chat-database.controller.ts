@@ -54,6 +54,8 @@ export class ChatDatabaseController {
       sessionId,
       llmProvider,
       credentialId,
+      model,
+      apiKey,
       databaseUrl,
       dbType,
     } = body;
@@ -62,6 +64,8 @@ export class ChatDatabaseController {
       userId: req.user!.userId,
       llmProvider,
       credentialId,
+      model,
+      apiKey,
       databaseUrl,
       dbType,
     });

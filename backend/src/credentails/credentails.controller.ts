@@ -13,7 +13,16 @@ import {
 import { CredentailsService } from './credentails.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { AuthenticatedRequest } from '@/types/auth.types';
-import { CredentialType, Prisma } from '@prisma/client';
+import { CredentialType } from '@prisma/client';
+
+type CreateCredentialDto = {
+  name: string;
+  type: CredentialType;
+  data: Record<string, unknown>;
+  isActive?: boolean;
+};
+
+type UpdateCredentialDto = Partial<CreateCredentialDto>;
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('credentials')
@@ -22,7 +31,7 @@ export class CredentailsController {
 
   @Post()
   create(
-    @Body() createCredentailDto: Prisma.CredentialCreateInput,
+    @Body() createCredentailDto: CreateCredentialDto,
     @Req() request: AuthenticatedRequest,
   ) {
     const userId = request.user?.userId as string;
@@ -47,7 +56,7 @@ export class CredentailsController {
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body() updateCredentailDto: Prisma.CredentialUpdateInput,
+    @Body() updateCredentailDto: UpdateCredentialDto,
     @Req() request: AuthenticatedRequest,
   ) {
     const userId = request.user?.userId as string;
