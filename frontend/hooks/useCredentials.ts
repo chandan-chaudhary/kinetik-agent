@@ -5,19 +5,15 @@ import { toast } from "sonner";
 
 const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
 
-export type CredentialType = "LLM" | "MARKET" | "DATABASE" | "OTHER";
+export type CredentialType = "LLM" | "DATABASE" | "API_KEY" | "TELEGRAM";
 
 export interface Credential {
   id: string;
-  userId: string;
   name: string;
   type: CredentialType;
-  provider: string;
-  model: string | null;
-  metadata: Record<string, unknown> | null;
+  data: string; // encrypted blob
+  preview?: string;
   isActive: boolean;
-  hasApiKey: boolean;
-  apiKey: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,10 +21,7 @@ export interface Credential {
 export interface CreateCredentialPayload {
   name: string;
   type: CredentialType;
-  provider: string;
-  model?: string;
-  apiKey?: string;
-  metadata?: Record<string, unknown>;
+  data: Record<string, unknown>;
   isActive?: boolean;
 }
 

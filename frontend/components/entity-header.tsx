@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { SidebarTrigger } from "./ui/sidebar";
+// import { SidebarTrigger } from "./ui/sidebar";
 import Image from "next/image";
 
 export type EntityHeaderProps = {
@@ -34,7 +34,7 @@ export default function EntityHeader({
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
           <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-            <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" />
+            {/* <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" /> */}
             <div className="flex items-start gap-3 sm:items-center">
               <div className="h-px w-6 bg-border hidden sm:block" />
               <div>

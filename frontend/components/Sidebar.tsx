@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -18,7 +19,7 @@ import {
   Activity,
   Home,
   KeyIcon,
-  Settings,
+  // Settings,
   Database,
 } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
@@ -32,19 +33,22 @@ const navigationItems = [
   { href: "/credentials", label: "Credentials", icon: KeyIcon },
 ];
 
-const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
+// const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const { user, isLoading } = useUser();
   const { state } = useSidebar();
+  const isExpanded = state === "expanded";
 
   return (
-    <Sidebar>
-      <Link href="/">
-        <SidebarHeader className="border-b border-sidebar-border">
-          <div className="flex items-center justify-between px-4 py-4">
-            <div className="flex items-center gap-3">
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div
+          className={`flex items-center px-4 py-4 ${isExpanded ? "justify-between" : "justify-center"}`}
+        >
+          {isExpanded && (
+            <Link href="/" className="flex items-center gap-3 min-w-0">
               <Image
                 src="/kinetik-application-logo.png"
                 alt="Kinetik Logo"
@@ -52,20 +56,19 @@ export default function AppSidebar() {
                 height={36}
                 className="w-9 h-9"
               />
-              {state === "expanded" && (
-                <div className="flex flex-col">
-                  <span className="text-xl font-bold text-foreground tracking-tight">
-                    KINETIK
-                  </span>
-                  <span className="text-xs text-sidebar-foreground/60">
-                    AI in Motion
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </SidebarHeader>
-      </Link>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-foreground tracking-tight">
+                  KINETIK
+                </span>
+                <span className="text-xs text-sidebar-foreground/60">
+                  AI in Motion
+                </span>
+              </div>
+            </Link>
+          )}
+          <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" />
+        </div>
+      </SidebarHeader>
 
       <SidebarContent className="px-2 py-2">
         <SidebarMenu className="space-y-1">
@@ -80,7 +83,8 @@ export default function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   className={`
-                    px-3 py-2.5 rounded-lg transition-all duration-200
+                    py-2.5 rounded-lg transition-all duration-200
+                    ${isExpanded ? "px-3" : "px-2"}
                     ${
                       isActive
                         ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
@@ -88,11 +92,14 @@ export default function AppSidebar() {
                     }
                   `}
                 >
-                  <Link href={item.href} className="flex items-center gap-3">
+                  <Link
+                    href={item.href}
+                    className={`flex items-center ${isExpanded ? "gap-3" : "justify-center"}`}
+                  >
                     <Icon
                       className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
                     />
-                    {state === "expanded" && <span>{item.label}</span>}
+                    {isExpanded && <span>{item.label}</span>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -105,7 +112,7 @@ export default function AppSidebar() {
         <UserDisplay user={user} isLoading={isLoading} />
 
         {/* Footer Menu Items */}
-        <SidebarMenu className="px-2 py-2 space-y-1">
+        {/* <SidebarMenu className="px-2 py-2 space-y-1">
           {footerItems.map((item) => {
             const Icon = item.icon;
 
@@ -123,7 +130,7 @@ export default function AppSidebar() {
               </SidebarMenuItem>
             );
           })}
-        </SidebarMenu>
+        </SidebarMenu> */}
       </SidebarFooter>
     </Sidebar>
   );

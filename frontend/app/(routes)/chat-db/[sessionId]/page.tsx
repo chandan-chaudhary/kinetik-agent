@@ -12,11 +12,12 @@ import { cn } from "@/lib/utils";
 import { useApproveDB, useQueryDB, type DBChatConfig } from "@/hooks/useChatDB";
 import {
   type ChatMessage,
-  type ChatSession,
-  useChatSessions,
+  type ChatSessionSummary,
+  useChatSession,
   useCreateChatSession,
   useDeleteChatSession,
   useRenameChatSession,
+  useUpdateChatSession,
 } from "@/hooks/useChatSession";
 import {
   AlertCircle,
@@ -45,6 +46,11 @@ interface ApprovalContext {
   };
 }
 
+const DEFAULT_DB_CHAT_CONFIG: DBChatConfig = {
+  dbType: "postgres",
+  databaseUrl: "",
+};
+
 export default function ChatDBSessionPage() {
   const params = useParams<{ sessionId?: string }>();
   const router = useRouter();
@@ -64,26 +70,58 @@ export default function ChatDBSessionPage() {
   const [feedback, setFeedback] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const { data: sessions, isLoading: sessionsLoading } = useChatSessions();
+  // const { data: sessions, isLoading: sessionsLoading } = useChatSessions();
+  const { data: session, isLoading: sessionLoading } = useChatSession(
+    sessionId ?? undefined,
+  );
   const createSession = useCreateChatSession();
   const deleteSession = useDeleteChatSession();
   const renameSession = useRenameChatSession();
+  const updateSession = useUpdateChatSession();
 
   const queryMutation = useQueryDB();
   const approveMutation = useApproveDB();
   const loading = queryMutation.isPending || approveMutation.isPending;
 
-  const activeSession = sessions?.find((s) => s.id === sessionId) ?? null;
+  // const activeSessionSummary =
+  //   sessions?.find((s) => s.id === sessionId) ?? null;
+  const activeSession = session ?? null;
   const sessionKey = sessionId ?? "__no_session__";
   const sessionMessages = sessionId ? messagesBySession[sessionKey] : undefined;
-  const activeSessionMessages = activeSession?.messages;
+  const activeSessionMessages = session?.messages;
   const messages = useMemo(() => {
     if (!sessionId) return [] as ChatMessage[];
     const existing = sessionMessages ?? activeSessionMessages;
     return existing ?? [];
   }, [sessionId, sessionMessages, activeSessionMessages]);
-  const canSend = !!sessionId && isConfigured && !loading && !settingsOpen;
+  const sessionBackfilledConfig = useMemo<DBChatConfig | null>(() => {
+    if (!activeSession) return null;
+    return {
+      dbType: (activeSession.dbType as "postgres" | "mongodb") || "postgres",
+      databaseUrl: activeSession.databaseUrl || "",
+      credentialId: activeSession.llmCredentialId || undefined,
+      llmProvider: activeSession.llmProvider as
+        | "groq"
+        | "google"
+        | "google-genai"
+        | "ollama"
+        | undefined,
+      model: activeSession.llmModel || undefined,
+      apiKey: activeSession.llmApiKey || undefined,
+    };
+  }, [activeSession]);
+
+  // Persisted session config should win so fields auto-fill reliably.
+  const effectiveConfig = sessionBackfilledConfig ?? config;
+  const hasPersistedConfig = Boolean(
+    (effectiveConfig?.databaseUrl || "").trim() &&
+    (effectiveConfig?.credentialId || effectiveConfig?.llmProvider),
+  );
+  const canSend =
+    !!sessionId &&
+    (isConfigured || hasPersistedConfig) &&
+    !loading &&
+    !settingsOpen;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,22 +132,30 @@ export default function ChatDBSessionPage() {
   }, [loading]);
 
   useEffect(() => {
-    if (!sessionsLoading && sessionId && !activeSession) {
+    if (!sessionLoading && sessionId && !activeSession) {
       router.replace("/chat-db");
     }
-  }, [sessionId, activeSession, sessionsLoading, router]);
+  }, [sessionId, activeSession, router, sessionLoading]);
+
+  const appendMessageForCurrentSession = (message: ChatMessage) => {
+    setMessagesBySession((prev) => {
+      const current = prev[sessionKey] ?? messages;
+      return {
+        ...prev,
+        [sessionKey]: [...current, message],
+      };
+    });
+  };
 
   const handleNewChat = async () => {
-    const configForNewChat = config ?? {
-      dbType: "postgres",
-      databaseUrl: "",
-      llmProvider: undefined,
-      model: "",
-      apiKey: "",
-    };
+    const configForNewChat = effectiveConfig ?? DEFAULT_DB_CHAT_CONFIG;
     const session = await createSession.mutateAsync({
       dbType: configForNewChat.dbType,
       databaseUrl: configForNewChat.databaseUrl || undefined,
+      llmCredentialId: configForNewChat.credentialId || undefined,
+      llmProvider: configForNewChat.llmProvider,
+      llmModel: configForNewChat.model,
+      llmApiKey: configForNewChat.apiKey,
     });
     setMessagesBySession((prev) => ({
       ...prev,
@@ -119,7 +165,7 @@ export default function ChatDBSessionPage() {
     router.push(`/chat-db/${session.id}`);
   };
 
-  const handleSelectSession = (session: ChatSession) => {
+  const handleSelectSession = (session: ChatSessionSummary) => {
     setApprovalContext(null);
     setFeedback("");
     router.push(`/chat-db/${session.id}`);
@@ -144,34 +190,28 @@ export default function ChatDBSessionPage() {
   };
 
   const sendMessage = () => {
-    if (!prompt.trim() || !canSend || !sessionId || !config) return;
+    if (!prompt.trim() || !canSend || !sessionId || !effectiveConfig) return;
 
     const userMsg: ChatMessage = {
       role: "user",
       content: prompt,
       timestamp: new Date().toISOString(),
     };
-    setMessagesBySession((prev) => {
-      const current = prev[sessionKey] ?? messages;
-      return {
-        ...prev,
-        [sessionKey]: [...current, userMsg],
-      };
-    });
+    appendMessageForCurrentSession(userMsg);
     const currentPrompt = prompt;
     setPrompt("");
 
     const payload = {
       prompt: currentPrompt,
       sessionId,
-      databaseUrl: config.databaseUrl,
-      dbType: config.dbType,
-      ...(config.credentialId
-        ? { credentialId: config.credentialId }
+      databaseUrl: effectiveConfig.databaseUrl,
+      dbType: effectiveConfig.dbType,
+      ...(effectiveConfig.credentialId
+        ? { credentialId: effectiveConfig.credentialId }
         : {
-            llmProvider: config.llmProvider,
-            model: config.model,
-            apiKey: config.apiKey,
+            llmProvider: effectiveConfig.llmProvider,
+            model: effectiveConfig.model,
+            apiKey: effectiveConfig.apiKey,
           }),
     };
 
@@ -186,23 +226,14 @@ export default function ChatDBSessionPage() {
             typeof data.content === "object"
               ? data.content.generatedSql || data.content.question
               : String(data.content ?? "Approval required");
-          setMessagesBySession((prev) => {
-            const current = prev[sessionKey] ?? messages;
-            return {
-              ...prev,
-              [sessionKey]: [
-                ...current,
-                {
-                  role: "assistant",
-                  content: preview,
-                  sql:
-                    typeof data.content === "object"
-                      ? data.content.generatedSql
-                      : undefined,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
+          appendMessageForCurrentSession({
+            role: "assistant",
+            content: preview,
+            sql:
+              typeof data.content === "object"
+                ? data.content.generatedSql
+                : undefined,
+            timestamp: new Date().toISOString(),
           });
           setApprovalContext({
             threadId: data.threadId!,
@@ -213,36 +244,18 @@ export default function ChatDBSessionPage() {
             typeof data.content === "string"
               ? data.content
               : JSON.stringify(data.content, null, 2);
-          setMessagesBySession((prev) => {
-            const current = prev[sessionKey] ?? messages;
-            return {
-              ...prev,
-              [sessionKey]: [
-                ...current,
-                {
-                  role: "assistant",
-                  content,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
+          appendMessageForCurrentSession({
+            role: "assistant",
+            content,
+            timestamp: new Date().toISOString(),
           });
         }
       },
       onError: () => {
-        setMessagesBySession((prev) => {
-          const current = prev[sessionKey] ?? messages;
-          return {
-            ...prev,
-            [sessionKey]: [
-              ...current,
-              {
-                role: "system",
-                content: "Failed to query database. Please try again.",
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          };
+        appendMessageForCurrentSession({
+          role: "system",
+          content: "Failed to query database. Please try again.",
+          timestamp: new Date().toISOString(),
         });
       },
     });
@@ -259,38 +272,20 @@ export default function ChatDBSessionPage() {
       {
         onSuccess: (data) => {
           if (data.completed) {
-            setMessagesBySession((prev) => {
-              const current = prev[sessionKey] ?? messages;
-              return {
-                ...prev,
-                [sessionKey]: [
-                  ...current,
-                  {
-                    role: "assistant",
-                    content: data.content ?? "",
-                    timestamp: new Date().toISOString(),
-                  },
-                ],
-              };
+            appendMessageForCurrentSession({
+              role: "assistant",
+              content: data.content ?? "",
+              timestamp: new Date().toISOString(),
             });
           }
           setApprovalContext(null);
           setFeedback("");
         },
         onError: () => {
-          setMessagesBySession((prev) => {
-            const current = prev[sessionKey] ?? messages;
-            return {
-              ...prev,
-              [sessionKey]: [
-                ...current,
-                {
-                  role: "system",
-                  content: "Failed to process approval.",
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
+          appendMessageForCurrentSession({
+            role: "system",
+            content: "Failed to process approval.",
+            timestamp: new Date().toISOString(),
           });
         },
       },
@@ -300,9 +295,9 @@ export default function ChatDBSessionPage() {
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <ChatDbSidebar
-        sessions={sessions}
+        // sessions={sessions}
         activeSessionId={sessionId}
-        isLoading={sessionsLoading}
+        // isLoading={sessionsLoading}
         isCreating={createSession.isPending}
         onNewChat={handleNewChat}
         onSelectSession={handleSelectSession}
@@ -313,13 +308,27 @@ export default function ChatDBSessionPage() {
       <SidebarInset className="flex flex-col flex-1 min-w-0">
         <div className="flex flex-col flex-1 overflow-hidden">
           <ChatDbHeader
+            key={activeSession?.id || "new-chat-db-config"}
             title={activeSession?.title || "Ask Database"}
             dbType={activeSession?.dbType}
-            initialConfig={config ?? undefined}
+            initialConfig={effectiveConfig ?? undefined}
             onConfigChange={(next) => setConfig(next)}
             onConfigSave={(next) => {
               setConfig(next);
               setIsConfigured(true);
+
+              if (!sessionId) return;
+              updateSession.mutate({
+                id: sessionId,
+                data: {
+                  dbType: next.dbType,
+                  databaseUrl: next.databaseUrl,
+                  llmCredentialId: next.credentialId,
+                  llmProvider: next.llmProvider,
+                  llmModel: next.model,
+                  llmApiKey: next.apiKey,
+                },
+              });
             }}
             onStatusChange={({
               config: nextConfig,
@@ -336,7 +345,7 @@ export default function ChatDBSessionPage() {
             <div className="w-full space-y-6">
               {!sessionId ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600/60 flex items-center justify-center shadow-lg">
+                  <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600/60 flex items-center justify-center shadow-lg">
                     <Database className="h-8 w-8 text-white" />
                   </div>
                   <h2 className="text-2xl font-bold">Talk to your Database</h2>
@@ -344,7 +353,7 @@ export default function ChatDBSessionPage() {
                     Create a new chat or select an existing one from the
                     sidebar.
                   </p>
-                  {!isConfigured && (
+                  {!hasPersistedConfig && (
                     <p className="text-xs text-yellow-600 flex items-center gap-1">
                       <AlertCircle className="h-3.5 w-3.5" />
                       Configure your database and LLM first
@@ -418,7 +427,7 @@ export default function ChatDBSessionPage() {
                             : "bg-muted rounded-tl-sm",
                       )}
                     >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
                         {msg.content}
                       </p>
                       {msg.sql && (
@@ -469,7 +478,7 @@ export default function ChatDBSessionPage() {
             </div>
           </div>
 
-          <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky bottom-0 px-4 sm:px-5 lg:px-6">
+          <div className="border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky bottom-0 px-4 sm:px-5 lg:px-6">
             {approvalContext && (
               <div className="border-b bg-yellow-50/50 dark:bg-yellow-950/20">
                 <div className="py-4 w-full space-y-3">
@@ -541,7 +550,7 @@ export default function ChatDBSessionPage() {
                     </button>
                   </div>
                 )}
-                {sessionId && !isConfigured && (
+                {sessionId && !hasPersistedConfig && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg px-3 py-2 border border-yellow-200">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>Configure connection first.</span>

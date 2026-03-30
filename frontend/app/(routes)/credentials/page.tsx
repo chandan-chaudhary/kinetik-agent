@@ -9,17 +9,12 @@ import {
   useDeleteCredential,
   type Credential,
   type CredentialType,
+  type CreateCredentialPayload,
 } from "@/hooks/useCredentials";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import EntityHeader from "@/components/entity-header";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -36,44 +31,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { decryptApiKey } from "@/lib/credentials-decrypt";
-import { CredentialCards } from "./credential-cards";
+import { CredentialCards } from "./_components/credential-cards";
 import {
   CredentialForm,
-  TYPE_OPTIONS,
   type CredentialFormState,
-} from "./credential-form";
+} from "./_components/credential-form";
+import { CREDENTIAL_DEFINITIONS } from "@/lib/credential-types";
+import { decryptCredentialData } from "@/lib/encrypt-decrypt-credentials";
+import { toast } from "sonner";
 
 const DEFAULT_FORM: CredentialFormState = {
   name: "",
   type: "LLM",
-  provider: "",
-  model: "",
-  apiKey: "",
-  metadataText: "{}",
+  data: {},
   isActive: "true",
 };
-
-function parseMetadata(metadataText: string): Record<string, unknown> {
-  const trimmed = metadataText.trim();
-  if (!trimmed) return {};
-  const parsed = JSON.parse(trimmed) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Metadata must be a JSON object");
-  }
-  return parsed as Record<string, unknown>;
-}
 
 export default function CredentialsPage() {
   const [typeFilter, setTypeFilter] = useState<CredentialType | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
   const [editCredential, setEditCredential] = useState<Credential | null>(null);
-  const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
-  const [decryptedKeys, setDecryptedKeys] = useState<
-    Record<string, string | null>
-  >({});
   const [form, setForm] = useState<CredentialFormState>(DEFAULT_FORM);
 
   const selectedType = typeFilter === "ALL" ? undefined : typeFilter;
@@ -86,6 +64,7 @@ export default function CredentialsPage() {
     () => credentialsQuery.data ?? [],
     [credentialsQuery.data],
   );
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const totalActive = useMemo(
@@ -104,8 +83,7 @@ export default function CredentialsPage() {
     return credentials.filter((item) => {
       return (
         item.name.toLowerCase().includes(q) ||
-        item.provider.toLowerCase().includes(q) ||
-        (item.model ?? "").toLowerCase().includes(q)
+        (item.preview ?? "").toLowerCase().includes(q)
       );
     });
   }, [credentials, searchTerm]);
@@ -123,41 +101,32 @@ export default function CredentialsPage() {
     setForm({
       name: item.name,
       type: item.type,
-      provider: item.provider,
-      model: item.model ?? "",
-      apiKey: "",
-      metadataText: JSON.stringify(item.metadata ?? {}, null, 2),
+      data: {},
       isActive: item.isActive ? "true" : "false",
     });
     setEditCredential(item);
-    if (item.apiKey) {
-      try {
-        const value = await decryptApiKey(item.apiKey);
-        setDecryptedKeys((prev) => ({ ...prev, [item.id]: value }));
-        setForm((prev) => ({ ...prev, apiKey: value ?? "" }));
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to decrypt API key");
+
+    try {
+      const decrypted = await decryptCredentialData(item.data);
+      if (decrypted) {
+        setForm({
+          name: item.name,
+          type: item.type,
+          data: decrypted,
+          isActive: item.isActive ? "true" : "false",
+        });
       }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to decrypt credential");
     }
   }
 
   async function submitCreate() {
-    let metadata: Record<string, unknown>;
-    try {
-      metadata = parseMetadata(form.metadataText);
-    } catch {
-      toast.error("Invalid metadata JSON");
-      return;
-    }
-
     await createMutation.mutateAsync({
       name: form.name.trim(),
       type: form.type,
-      provider: form.provider.trim(),
-      model: form.model.trim() || undefined,
-      apiKey: form.apiKey.trim() || undefined,
-      metadata,
+      data: form.data,
       isActive: form.isActive === "true",
     });
     setOpenCreate(false);
@@ -166,28 +135,19 @@ export default function CredentialsPage() {
 
   async function submitUpdate() {
     if (!editCredential) return;
-    let metadata: Record<string, unknown>;
-    try {
-      metadata = parseMetadata(form.metadataText);
-    } catch {
-      toast.error("Invalid metadata JSON");
-      return;
+    const updatePayload: Partial<CreateCredentialPayload> = {
+      name: form.name.trim(),
+      type: form.type,
+      isActive: form.isActive === "true",
+    };
+
+    if (form.data && Object.keys(form.data).length > 0) {
+      updatePayload.data = form.data;
     }
 
     await updateMutation.mutateAsync({
       id: editCredential.id,
-      data: {
-        name: form.name.trim(),
-        type: form.type,
-        provider: form.provider.trim(),
-        model: form.model.trim() || undefined,
-        ...(form.apiKey.trim().length > 0 &&
-        form.apiKey.trim() !== (editCredential.apiKey ?? "")
-          ? { apiKey: form.apiKey.trim() }
-          : {}),
-        metadata,
-        isActive: form.isActive === "true",
-      },
+      data: updatePayload,
     });
     setEditCredential(null);
     resetForm();
@@ -197,36 +157,6 @@ export default function CredentialsPage() {
     const confirmDelete = window.confirm("Delete this credential?");
     if (!confirmDelete) return;
     await deleteMutation.mutateAsync(id);
-  }
-
-  async function toggleReveal(credential: Credential) {
-    const next = !revealedKeys[credential.id];
-    setRevealedKeys((prev) => ({ ...prev, [credential.id]: next }));
-
-    if (next && credential.apiKey && !decryptedKeys[credential.id]) {
-      try {
-        const value = await decryptApiKey(credential.apiKey);
-        setDecryptedKeys((prev) => ({ ...prev, [credential.id]: value }));
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to decrypt API key");
-        setRevealedKeys((prev) => ({ ...prev, [credential.id]: false }));
-      }
-    }
-  }
-
-  async function copyApiKey(id: string) {
-    const value = decryptedKeys[id];
-    if (!value) {
-      toast.error("Decrypt the key first");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("API key copied");
-    } catch {
-      toast.error("Failed to copy API key");
-    }
   }
 
   return (
@@ -282,7 +212,7 @@ export default function CredentialsPage() {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, provider, or model"
+              placeholder="Search by name or preview"
               className="w-full md:w-80"
             />
 
@@ -297,9 +227,12 @@ export default function CredentialsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All</SelectItem>
-                {TYPE_OPTIONS.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
+                {CREDENTIAL_DEFINITIONS.map((type) => (
+                  <SelectItem
+                    key={type.type}
+                    value={type.type as CredentialType}
+                  >
+                    {type.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -341,10 +274,6 @@ export default function CredentialsPage() {
         ) : (
           <CredentialCards
             credentials={visibleCredentials}
-            revealedKeys={revealedKeys}
-            decryptedKeys={decryptedKeys}
-            toggleReveal={toggleReveal}
-            copyApiKey={copyApiKey}
             openEditDialog={openEditDialog}
             handleDelete={handleDelete}
             isDeleting={deleteMutation.isPending}
@@ -369,10 +298,7 @@ export default function CredentialsPage() {
               <Button variant="outline" onClick={() => setOpenCreate(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={submitCreate}
-                disabled={isSaving || !form.name || !form.provider}
-              >
+              <Button onClick={submitCreate} disabled={isSaving || !form.name}>
                 Save
               </Button>
             </DialogFooter>
@@ -407,10 +333,7 @@ export default function CredentialsPage() {
               >
                 Cancel
               </Button>
-              <Button
-                onClick={submitUpdate}
-                disabled={isSaving || !form.name || !form.provider}
-              >
+              <Button onClick={submitUpdate} disabled={isSaving || !form.name}>
                 Update
               </Button>
             </DialogFooter>

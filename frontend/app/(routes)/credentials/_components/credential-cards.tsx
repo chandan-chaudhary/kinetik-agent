@@ -16,9 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Eye,
-  EyeOff,
-  Copy,
   Pencil,
   Trash2,
   KeyRound,
@@ -37,19 +34,11 @@ function getCredentialIcon(type: Credential["type"]) {
 
 export function CredentialCards({
   credentials,
-  revealedKeys,
-  decryptedKeys,
-  toggleReveal,
-  copyApiKey,
   openEditDialog,
   handleDelete,
   isDeleting,
 }: {
   credentials: Credential[];
-  revealedKeys: Record<string, boolean>;
-  decryptedKeys: Record<string, string | null>;
-  toggleReveal: (credential: Credential) => Promise<void> | void;
-  copyApiKey: (id: string) => Promise<void> | void;
   openEditDialog: (credential: Credential) => Promise<void> | void;
   handleDelete: (id: string) => Promise<void> | void;
   isDeleting: boolean;
@@ -74,13 +63,6 @@ export function CredentialCards({
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
       {credentials.map((item) => {
         const Icon = getCredentialIcon(item.type);
-        const isRevealed = Boolean(revealedKeys[item.id]);
-        const decrypted = decryptedKeys[item.id];
-        const displayApiKey = item.apiKey
-          ? isRevealed
-            ? (decrypted ?? "Decrypting...")
-            : "••••••••"
-          : "Not set";
 
         return (
           <Card
@@ -98,7 +80,7 @@ export function CredentialCards({
                       {item.name}
                     </CardTitle>
                     <CardDescription className="wrap-break-word">
-                      {item.type} • {item.provider}
+                      {item.type} • {item.preview || "Encrypted"}
                     </CardDescription>
                   </div>
                 </div>
@@ -140,42 +122,18 @@ export function CredentialCards({
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm">
+            <CardContent className="space-y-3 text-sm">
               <div className="space-y-1">
-                <p className="text-muted-foreground">Model</p>
-                <p className="font-medium">{item.model || "-"}</p>
+                <p className="text-muted-foreground">Preview</p>
+                <p className="font-medium break-words">
+                  {item.preview || "Encrypted blob"}
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-muted-foreground">API Key</p>
-                <div className="rounded-md border bg-muted/70 px-3 py-2 font-mono text-xs break-all min-h-[44px]">
-                  {displayApiKey}
-                </div>
-              </div>
-              <div className="pt-1 flex gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 min-w-[140px]"
-                  onClick={() => toggleReveal(item)}
-                  disabled={!item.apiKey}
-                >
-                  {isRevealed ? (
-                    <EyeOff className="h-4 w-4 mr-1" />
-                  ) : (
-                    <Eye className="h-4 w-4 mr-1" />
-                  )}
-                  {isRevealed ? "Hide" : "Show"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 min-w-[140px]"
-                  onClick={() => copyApiKey(item.id)}
-                  disabled={!decrypted}
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </Button>
+                <p className="text-muted-foreground">Last updated</p>
+                <p className="font-medium">
+                  {new Date(item.updatedAt).toLocaleString()}
+                </p>
               </div>
             </CardContent>
           </Card>

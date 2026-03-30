@@ -99,7 +99,7 @@ export function UserDisplay({
   }
 
   return (
-    <div className="px-4 py-3">
+    <div className=" py-3">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent rounded-md p-2 transition-colors">
@@ -127,8 +127,8 @@ export function UserDisplay({
             Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
+          <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+            <LogOut className="w-4 h-4 mr-2 text-red-500 " />
             Logout
           </DropdownMenuItem>
         </DropdownMenuContent>

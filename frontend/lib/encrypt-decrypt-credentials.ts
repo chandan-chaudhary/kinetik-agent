@@ -7,7 +7,7 @@ export async function deriveKey(secret: string) {
   ]);
 }
 
-export async function decryptApiKey(
+async function decryptCiphertext(
   ciphertext?: string | null,
 ): Promise<string | null> {
   if (!ciphertext) return null;
@@ -35,4 +35,25 @@ export async function decryptApiKey(
   );
 
   return new TextDecoder().decode(decrypted);
+}
+
+export async function decryptApiKey(
+  ciphertext?: string | null,
+): Promise<string | null> {
+  return decryptCiphertext(ciphertext);
+}
+
+export async function decryptCredentialData(
+  ciphertext?: string | null,
+): Promise<Record<string, unknown> | null> {
+  const plain = await decryptCiphertext(ciphertext);
+  if (!plain) return null;
+  try {
+    const parsed = JSON.parse(plain);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 }

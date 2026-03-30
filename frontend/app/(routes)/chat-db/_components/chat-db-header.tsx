@@ -52,6 +52,27 @@ type ConfigStatus = {
   settingsOpen: boolean;
 };
 
+type ParsedCredentialPreview = {
+  provider?: LlmProvider;
+  model?: string;
+};
+
+function parseCredentialPreview(preview?: string): ParsedCredentialPreview {
+  if (!preview) return {};
+
+  const [providerRaw, modelRaw] = preview
+    .split("/")
+    .map((part) => part.trim());
+
+  const provider = LLM_PROVIDERS.includes(providerRaw as LlmProvider)
+    ? (providerRaw as LlmProvider)
+    : undefined;
+
+  const model = modelRaw && modelRaw !== "—" ? modelRaw : undefined;
+
+  return { provider, model };
+}
+
 type ChatDbHeaderProps = {
   title: string;
   dbType?: string | null;
@@ -127,14 +148,14 @@ export function ChatDbHeader({
       }
       const cred = llmCredentials?.find((c) => c.id === credentialId);
       if (!cred) return prev;
-      const provider = LLM_PROVIDERS.includes(cred.provider as LlmProvider)
-        ? (cred.provider as LlmProvider)
-        : prev.llmProvider;
+      const { provider: previewProvider, model: previewModel } =
+        parseCredentialPreview(cred.preview);
+      const provider = previewProvider ?? prev.llmProvider;
       return {
         ...prev,
         credentialId,
         llmProvider: provider,
-        model: cred.model ?? DEFAULT_MODELS[provider] ?? prev.model,
+        model: previewModel ?? (provider ? DEFAULT_MODELS[provider] : prev.model),
         apiKey: "",
       };
     });
@@ -220,7 +241,7 @@ export function ChatDbHeader({
                     }));
                   }}
                   placeholder={DB_PLACEHOLDERS[config.dbType]}
-                  className="font-mono text-xs min-h-[80px] resize-none"
+                  className="font-mono text-xs min-h-20 resize-none"
                 />
               </div>
             </div>
@@ -253,7 +274,7 @@ export function ChatDbHeader({
                     <SelectItem value="none">Use custom key</SelectItem>
                     {llmCredentials?.map((cred) => (
                       <SelectItem key={cred.id} value={cred.id}>
-                        {cred.name} - {cred.provider}
+                        {cred.name} - {cred.preview || "saved"}
                       </SelectItem>
                     ))}
                   </SelectContent>
