@@ -5,6 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -91,11 +98,6 @@ export function ChatDbSidebar({
       },
       disabled: isCreating,
     },
-    // {
-    //   key: "search",
-    //   label: "Search",
-    //   icon: Search,
-    // },
     {
       key: "chats",
       label: "Chats",
@@ -132,22 +134,24 @@ export function ChatDbSidebar({
             isExpanded ? "justify-between gap-3" : "justify-center",
           )}
         >
-          {isExpanded && (
-            <div className="flex items-center gap-3 min-w-0">
+         {isExpanded && (
+            <Link href="/" className="flex items-center gap-3 min-w-0">
               <Image
                 src="/kinetik-application-logo.png"
-                alt="App logo"
-                width={28}
-                height={28}
-                className="rounded-md"
+                alt="Kinetik Logo"
+                width={36}
+                height={36}
+                className="w-9 h-9"
               />
-              <div className="leading-tight">
-                <p className="text-sm font-semibold tracking-tight">Kinetik</p>
-                <p className="text-[11px] uppercase text-sidebar-foreground/60">
-                  Database AI
-                </p>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-foreground tracking-tight">
+                  KINETIK
+                </span>
+                <span className="text-xs text-sidebar-foreground/60">
+                  AI in Motion
+                </span>
               </div>
-            </div>
+            </Link>
           )}
 
           <div className="flex items-center gap-1">
@@ -246,7 +250,7 @@ export function ChatDbSidebar({
                         )}
                         onClick={() => onSelectSession(session)}
                       >
-                        <div className="flex w-full items-center gap-3">
+                        <div className="flex w-full min-w-0 items-center gap-3 pr-6">
                           {/* <MessageSquare className="h-4 w-4 text-sidebar-foreground/60" /> */}
                           {renamingId === session.id ? (
                             <input
@@ -265,8 +269,10 @@ export function ChatDbSidebar({
                               className="flex-1 bg-transparent text-xs outline-none border-b border-sidebar-border"
                             />
                           ) : (
-                            <div className="flex flex-1 items-center justify-between gap-2 text-xs text-sidebar-foreground/90">
-                              <span className="truncate">{session.title}</span>
+                            <div className="flex flex-1 min-w-0 items-center justify-between gap-2 text-xs text-sidebar-foreground/90">
+                              <span className="block truncate">
+                                {session.title}
+                              </span>
                               {/* <span className="text-[10px] uppercase text-sidebar-foreground/60">
                                 {session.dbType}
                               </span> */}
@@ -274,34 +280,45 @@ export function ChatDbSidebar({
                           )}
                         </div>
                       </SidebarMenuButton>
-                      <SidebarMenuAction
-                        aria-label="Rename chat"
-                        showOnHover
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startRename(session);
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </SidebarMenuAction>
-                      <SidebarMenuAction
-                        aria-label="Delete chat"
-                        showOnHover
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteSession(session.id);
-                        }}
-                        className="right-8"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </SidebarMenuAction>
-                      <SidebarMenuAction
-                        aria-label="More actions"
-                        showOnHover
-                        className="right-14"
-                      >
-                        <MoreHorizontal className="h-3.5 w-3.5" />
-                      </SidebarMenuAction>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <SidebarMenuAction
+                            aria-label="Chat actions"
+                            showOnHover
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </SidebarMenuAction>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          side="bottom"
+                          sideOffset={6}
+                          className="w-44 rounded-xl"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRename(session);
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span>Rename</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-500 focus:text-red-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void onDeleteSession(session.id);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </SidebarMenuItem>
                   ))
                 ) : (
@@ -317,27 +334,6 @@ export function ChatDbSidebar({
 
       <SidebarFooter className="border-t border-sidebar-border mt-auto">
         <UserDisplay user={user} isLoading={userLoading} />
-
-        {/* Footer Menu Items */}
-        {/* <SidebarMenu className="px-2 py-2 space-y-1">
-          {footerItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  className="px-3 py-2.5 rounded-lg hover:bg-sidebar-accent/50 text-sidebar-foreground/80 hover:text-sidebar-foreground transition-all duration-200"
-                >
-                  <Link href={item.href} className="flex items-center gap-3">
-                    <Icon className="h-4 w-4" />
-                    {state === "expanded" && <span>{item.label}</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu> */}
       </SidebarFooter>
     </Sidebar>
   );

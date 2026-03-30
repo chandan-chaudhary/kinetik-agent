@@ -4,11 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatDbHeader } from "@/app/(routes)/chat-db/_components/chat-db-header";
 import { ChatDbSidebar } from "@/app/(routes)/chat-db/_components/chat-db-sidebar";
+import { ChatApprovalPanel } from "@/app/(routes)/chat-db/_components/chat-approval-panel";
+import { ChatEmptyState } from "@/app/(routes)/chat-db/_components/chat-empty-state";
+import { ChatMessageItem } from "@/app/(routes)/chat-db/_components/chat-message-item";
+import { ChatSessionLoadingSkeleton } from "@/app/(routes)/chat-db/_components/chat-session-loading-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import {
+  DbType,
+  DEFAULT_DB_TYPE,
+  isDbType,
+  isLlmProvider,
+} from "@/lib/types/chat-config";
 import { useApproveDB, useQueryDB, type DBChatConfig } from "@/hooks/useChatDB";
 import {
   type ChatMessage,
@@ -22,17 +30,11 @@ import {
 import {
   AlertCircle,
   Bot,
-  CheckCircle,
   ChevronRight,
-  Code,
   Database,
   Loader2,
-  MessageSquare,
   Plus,
   Send,
-  User,
-  XCircle,
-  Settings,
 } from "lucide-react";
 
 interface ApprovalContext {
@@ -47,7 +49,7 @@ interface ApprovalContext {
 }
 
 const DEFAULT_DB_CHAT_CONFIG: DBChatConfig = {
-  dbType: "postgres",
+  dbType: DEFAULT_DB_TYPE,
   databaseUrl: "",
 };
 
@@ -70,7 +72,8 @@ export default function ChatDBSessionPage() {
   const [feedback, setFeedback] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // const { data: sessions, isLoading: sessionsLoading } = useChatSessions();
+
+  // Load session data and messages
   const { data: session, isLoading: sessionLoading } = useChatSession(
     sessionId ?? undefined,
   );
@@ -83,29 +86,30 @@ export default function ChatDBSessionPage() {
   const approveMutation = useApproveDB();
   const loading = queryMutation.isPending || approveMutation.isPending;
 
-  // const activeSessionSummary =
-  //   sessions?.find((s) => s.id === sessionId) ?? null;
   const activeSession = session ?? null;
   const sessionKey = sessionId ?? "__no_session__";
   const sessionMessages = sessionId ? messagesBySession[sessionKey] : undefined;
   const activeSessionMessages = session?.messages;
+
+  // Messages for current session, preferring in-memory state for instant updates but falling back to session data for initial load or if no new messages have been added yet.
   const messages = useMemo(() => {
     if (!sessionId) return [] as ChatMessage[];
     const existing = sessionMessages ?? activeSessionMessages;
     return existing ?? [];
   }, [sessionId, sessionMessages, activeSessionMessages]);
+
+  // Config data from session
   const sessionBackfilledConfig = useMemo<DBChatConfig | null>(() => {
     if (!activeSession) return null;
     return {
-      dbType: (activeSession.dbType as "postgres" | "mongodb") || "postgres",
+      dbType: isDbType(activeSession.dbType)
+        ? activeSession.dbType
+        : DbType.POSTGRES,
       databaseUrl: activeSession.databaseUrl || "",
       credentialId: activeSession.llmCredentialId || undefined,
-      llmProvider: activeSession.llmProvider as
-        | "groq"
-        | "google"
-        | "google-genai"
-        | "ollama"
-        | undefined,
+      llmProvider: isLlmProvider(activeSession.llmProvider)
+        ? activeSession.llmProvider
+        : undefined,
       model: activeSession.llmModel || undefined,
       apiKey: activeSession.llmApiKey || undefined,
     };
@@ -117,10 +121,13 @@ export default function ChatDBSessionPage() {
     (effectiveConfig?.databaseUrl || "").trim() &&
     (effectiveConfig?.credentialId || effectiveConfig?.llmProvider),
   );
+
+  // chek can send message
   const canSend =
     !!sessionId &&
     (isConfigured || hasPersistedConfig) &&
     !loading &&
+    !sessionLoading &&
     !settingsOpen;
 
   useEffect(() => {
@@ -128,8 +135,8 @@ export default function ChatDBSessionPage() {
   }, [messages, approvalContext]);
 
   useEffect(() => {
-    if (!loading) inputRef.current?.focus();
-  }, [loading]);
+    if (!loading && !sessionLoading) inputRef.current?.focus();
+  }, [loading, sessionLoading]);
 
   useEffect(() => {
     if (!sessionLoading && sessionId && !activeSession) {
@@ -366,93 +373,17 @@ export default function ChatDBSessionPage() {
                     <Plus className="h-4 w-4 mr-2" /> New Chat
                   </Button>
                 </div>
+              ) : sessionLoading ? (
+                <ChatSessionLoadingSkeleton />
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-                  <MessageSquare className="h-10 w-10 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No messages yet. Ask anything about your database!
-                  </p>
-                  {!isConfigured && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSettingsOpen(true)}
-                    >
-                      <Settings className="h-4 w-4 mr-2" /> Configure connection
-                    </Button>
-                  )}
-                  <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-                    {[
-                      "Show me all tables",
-                      "Count total records",
-                      "Show recent 10 entries",
-                    ].map((s) => (
-                      <Button
-                        key={s}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPrompt(s)}
-                        className="text-xs"
-                      >
-                        {s}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+                <ChatEmptyState
+                  isConfigured={isConfigured}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  onSuggestionClick={setPrompt}
+                />
               ) : (
-                messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300",
-                      msg.role === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
-                    {msg.role !== "user" && (
-                      <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-1">
-                        {msg.role === "assistant" ? (
-                          <Bot className="h-4 w-4 text-blue-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        )}
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "rounded-2xl px-4 py-3 max-w-[85%] shadow-sm space-y-2",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : msg.role === "system"
-                            ? "bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 text-yellow-900 dark:text-yellow-100"
-                            : "bg-muted rounded-tl-sm",
-                      )}
-                    >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word">
-                        {msg.content}
-                      </p>
-                      {msg.sql && (
-                        <div className="bg-background/60 rounded-lg p-3 border">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
-                            <Code className="h-3 w-3" /> Generated SQL
-                          </div>
-                          <pre className="text-xs font-mono whitespace-pre-wrap break-all">
-                            {msg.sql}
-                          </pre>
-                        </div>
-                      )}
-                      <p className="text-xs opacity-50">
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    {msg.role === "user" && (
-                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
-                        <User className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
+                messages.map((msg) => (
+                  <ChatMessageItem key={msg.timestamp} message={msg} />
                 ))
               )}
 
@@ -480,60 +411,14 @@ export default function ChatDBSessionPage() {
 
           <div className="border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky bottom-0 px-4 sm:px-5 lg:px-6">
             {approvalContext && (
-              <div className="border-b bg-yellow-50/50 dark:bg-yellow-950/20">
-                <div className="py-4 w-full space-y-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <span className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
-                      Review SQL — Approval Required
-                    </span>
-                  </div>
-                  {approvalContext.content.generatedSql && (
-                    <div className="bg-background/60 rounded-lg p-3 border font-mono text-xs whitespace-pre-wrap">
-                      {approvalContext.content.generatedSql}
-                    </div>
-                  )}
-                  <Textarea
-                    placeholder="Add feedback (optional)..."
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    className="min-h-[60px] text-sm resize-none bg-background/60"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleApprove(true)}
-                      disabled={loading}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      size="sm"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve & Execute
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleApprove(false)}
-                      disabled={loading}
-                      className="flex-1"
-                      size="sm"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject & Regenerate
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <ChatApprovalPanel
+                content={approvalContext.content}
+                feedback={feedback}
+                loading={loading}
+                onFeedbackChange={setFeedback}
+                onApprove={() => handleApprove(true)}
+                onReject={() => handleApprove(false)}
+              />
             )}
 
             <div className="py-4">
@@ -550,7 +435,7 @@ export default function ChatDBSessionPage() {
                     </button>
                   </div>
                 )}
-                {sessionId && !hasPersistedConfig && (
+                {sessionId && !sessionLoading && !hasPersistedConfig && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg px-3 py-2 border border-yellow-200">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>Configure connection first.</span>
@@ -568,9 +453,11 @@ export default function ChatDBSessionPage() {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder={
-                      canSend
-                        ? "Ask anything about your database..."
-                        : "Select a chat to start"
+                      sessionLoading
+                        ? "Loading session..."
+                        : canSend
+                          ? "Ask anything about your database..."
+                          : "Select a chat to start"
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
@@ -578,13 +465,22 @@ export default function ChatDBSessionPage() {
                         sendMessage();
                       }
                     }}
-                    disabled={loading || !!approvalContext || !sessionId}
+                    disabled={
+                      loading ||
+                      sessionLoading ||
+                      !!approvalContext ||
+                      !sessionId
+                    }
                     className="h-11 rounded-full shadow-sm"
                   />
                   <Button
                     onClick={sendMessage}
                     disabled={
-                      loading || !!approvalContext || !prompt.trim() || !canSend
+                      loading ||
+                      sessionLoading ||
+                      !!approvalContext ||
+                      !prompt.trim() ||
+                      !canSend
                     }
                     size="icon"
                     className="h-11 w-11 rounded-full shadow-lg"

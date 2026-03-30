@@ -10,6 +10,7 @@ import { ChatGroq } from '@langchain/groq';
 import { MarketStateType } from '@/nodes/trading-node/marketSchema';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { CredentailsService } from '@/credentails/credentails.service';
+import { LlmProvider, isLlmProvider } from '@/types/chat-config.types';
 
 type LlmCredentialResolved = {
   provider: string;
@@ -90,7 +91,10 @@ export class LlmService implements OnModuleInit {
       credential?.provider ||
       this.LLMConfigService.groqModelProvider;
 
-    const provider = (providerRaw || '').toLowerCase();
+    const providerNormalized = (providerRaw || '').toLowerCase();
+    const provider = isLlmProvider(providerNormalized)
+      ? providerNormalized
+      : LlmProvider.GROQ;
 
     // Generic model and temperature overrides from node config.
     const modelOverride =
@@ -103,8 +107,8 @@ export class LlmService implements OnModuleInit {
       typeof nodeData.temperature === 'number' ? nodeData.temperature : 0.7;
 
     switch (provider) {
-      case 'google':
-      case 'google-genai': {
+      case LlmProvider.GOOGLE:
+      case LlmProvider.GOOGLE_GENAI: {
         // Use node-level Google API key, fall back to env.
         const apiKey =
           (nodeData.googleApiKey as string | undefined) ||
@@ -119,13 +123,13 @@ export class LlmService implements OnModuleInit {
         }));
       }
 
-      case 'ollama': {
+      case LlmProvider.OLLAMA: {
         // Ollama is local — no API key required.
         const model = modelOverride || this.LLMConfigService.ollamaModel;
         return (this.LLM = new ChatOllama({ model, temperature }));
       }
 
-      case 'groq':
+      case LlmProvider.GROQ:
       default: {
         // Use node-level Groq API key, fall back to env.
         const apiKey =

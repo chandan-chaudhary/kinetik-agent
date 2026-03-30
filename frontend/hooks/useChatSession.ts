@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/utils";
+import { type DbType, type LlmProvider } from "@/lib/types/chat-config";
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,10 +15,10 @@ export interface ChatSession {
   id: string;
   title: string;
   threadId: string;
-  dbType: string;
+  dbType: DbType;
   databaseUrl?: string | null;
   llmCredentialId?: string | null;
-  llmProvider?: string | null;
+  llmProvider?: LlmProvider | null;
   llmModel?: string | null;
   llmApiKey?: string | null;
   messages: ChatMessage[];
@@ -49,10 +50,10 @@ const fetchSession = async (id: string): Promise<ChatSession> => {
 
 const createSession = async (data: {
   title?: string;
-  dbType?: string;
+  dbType?: DbType;
   databaseUrl?: string;
   llmCredentialId?: string;
-  llmProvider?: string;
+  llmProvider?: LlmProvider;
   llmModel?: string;
   llmApiKey?: string;
 }): Promise<ChatSession> => {

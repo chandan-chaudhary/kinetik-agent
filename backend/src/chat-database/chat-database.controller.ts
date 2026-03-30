@@ -2,6 +2,7 @@ import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { ChatDatabaseService } from './chat-database.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { AuthenticatedRequest } from '@/types/auth.types';
+import type { DbType, LlmProvider } from '@/types/chat-config.types';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('chat-database')
@@ -40,12 +41,12 @@ export class ChatDatabaseController {
     body: {
       prompt: string;
       sessionId: string; // NEW — required
-      llmProvider?: string;
+      llmProvider?: LlmProvider;
       credentialId?: string;
       model?: string;
       apiKey?: string;
       databaseUrl?: string;
-      dbType?: string;
+      dbType?: DbType;
     },
     @Req() req: AuthenticatedRequest,
   ): Promise<any> {

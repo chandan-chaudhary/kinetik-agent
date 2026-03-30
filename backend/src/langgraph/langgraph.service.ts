@@ -7,6 +7,7 @@ import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
 import { marketSchema } from '@/nodes/trading-node/marketSchema';
 import { tavilyTool } from '@/tools/tavily.tool';
 import { TelegramService } from '@/telegram-bot/telegram-bot.service';
+import { DbType } from '@/types/chat-config.types';
 
 @Injectable()
 export class LanggraphService {
@@ -21,11 +22,8 @@ export class LanggraphService {
     private readonly llmService: LlmService,
   ) {}
 
-  initDatabaseGraph(
-    databaseUrl?: string,
-    dbType: 'postgres' | 'mongodb' = 'postgres',
-  ): CompiledGraph {
-    const isPostgres = dbType !== 'mongodb';
+  initDatabaseGraph(databaseUrl: string, dbType: DbType): CompiledGraph {
+    const isPostgres = dbType !== DbType.MONGODB;
 
     const graph = new StateGraph(stateSchema)
       .addNode('schema', this.dbNodesService.getSchemaNode(databaseUrl, dbType))

@@ -21,6 +21,7 @@ import {
   sqlExecutorMsg,
   SQLGeneratorSystemMessage,
 } from '@/config/messagePrompts';
+import { DbType } from '@/types/chat-config.types';
 
 @Injectable()
 export class DatabaseNodesService {
@@ -28,7 +29,7 @@ export class DatabaseNodesService {
 
   getSchemaNode(
     databaseUrl?: string,
-    dbType: 'postgres' | 'mongodb' = 'postgres',
+    dbType: DbType = DbType.POSTGRES,
   ): GraphNode<typeof stateSchema> {
     return async (state: typeof stateSchema.State) => {
       console.log(`🔍 Schema node executing... [${dbType}]`, databaseUrl);
@@ -44,7 +45,7 @@ export class DatabaseNodesService {
         console.log('in schema generating', dbType);
 
         const dbSchema =
-          dbType === 'mongodb' && databaseUrl
+          dbType === DbType.MONGODB && databaseUrl
             ? await getMongoSchema(databaseUrl)
             : await getDbSchema(databaseUrl);
         console.log(

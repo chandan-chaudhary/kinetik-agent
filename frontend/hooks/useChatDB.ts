@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/utils";
+import { type DbType, type LlmProvider } from "@/lib/types/chat-config";
 import axios from "axios";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
@@ -6,9 +7,9 @@ import { useMutation } from "@tanstack/react-query";
 const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
 
 export interface DBChatConfig {
-  dbType: "postgres" | "mongodb";
+  dbType: DbType;
   databaseUrl: string;
-  llmProvider?: "groq" | "google" | "google-genai" | "ollama";
+  llmProvider?: LlmProvider;
   credentialId?: string;
   model?: string;
   apiKey?: string;
@@ -26,10 +27,10 @@ export interface DBChatConfig {
 // }
 export interface DBQueryPayload {
   prompt: string;
-  sessionId: string;          // NEW
+  sessionId: string;
   databaseUrl: string;
-  dbType: string;
-  llmProvider?: string;
+  dbType: DbType;
+  llmProvider?: LlmProvider;
   credentialId?: string;
   model?: string;
   apiKey?: string;

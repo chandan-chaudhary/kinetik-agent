@@ -1,3 +1,5 @@
+import { DbType, LlmProvider } from "@/lib/types/chat-config";
+
 export type FieldType = "string" | "password" | "number" | "boolean" | "select";
 
 export interface CredentialField {
@@ -29,10 +31,10 @@ export const CREDENTIAL_DEFINITIONS: CredentialTypeDefinition[] = [
         type: "select",
         required: true,
         options: [
-          { label: "Groq", value: "groq" },
-          { label: "Google Gemini", value: "google-genai" },
+          { label: "Groq", value: LlmProvider.GROQ },
+          { label: "Google Gemini", value: LlmProvider.GOOGLE_GENAI },
           { label: "OpenAI", value: "openai" },
-          { label: "Ollama (Local)", value: "ollama" },
+          { label: "Ollama (Local)", value: LlmProvider.OLLAMA },
         ],
       },
       {
@@ -59,8 +61,8 @@ export const CREDENTIAL_DEFINITIONS: CredentialTypeDefinition[] = [
         type: "select",
         required: true,
         options: [
-          { label: "PostgreSQL", value: "postgres" },
-          { label: "MongoDB", value: "mongodb" },
+          { label: "PostgreSQL", value: DbType.POSTGRES },
+          { label: "MongoDB", value: DbType.MONGODB },
           { label: "MySQL", value: "mysql" },
         ],
       },

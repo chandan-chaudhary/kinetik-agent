@@ -5,6 +5,12 @@ import { LlmService } from '@/llm/llm.service';
 import { ContentBlock, HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import { Injectable } from '@nestjs/common';
+import {
+  DbType,
+  type LlmProvider,
+  isDbType,
+  isLlmProvider,
+} from '@/types/chat-config.types';
 
 @Injectable()
 export class ChatDatabaseService {
@@ -19,12 +25,12 @@ export class ChatDatabaseService {
     config: {
       sessionId: string;
       userId: string;
-      llmProvider?: string;
+      llmProvider?: LlmProvider;
       credentialId?: string;
       model?: string;
       apiKey?: string;
       databaseUrl?: string;
-      dbType?: string;
+      dbType?: DbType;
     },
   ): Promise<any> {
     // 1. Load session to get stable threadId
@@ -45,10 +51,9 @@ export class ChatDatabaseService {
     );
 
     const sessionRecord = session as unknown as Record<string, unknown>;
-    const sessionLlmProvider =
-      typeof sessionRecord.llmProvider === 'string'
-        ? sessionRecord.llmProvider
-        : undefined;
+    const sessionLlmProvider = isLlmProvider(sessionRecord.llmProvider)
+      ? sessionRecord.llmProvider
+      : undefined;
     const sessionLlmCredentialId =
       typeof sessionRecord.llmCredentialId === 'string'
         ? sessionRecord.llmCredentialId
@@ -80,7 +85,11 @@ export class ChatDatabaseService {
 
     // 5. Build graph with session's databaseUrl if not overridden
     const databaseUrl = config.databaseUrl || session.databaseUrl || undefined;
-    const dbType = (config.dbType || session.dbType) as 'postgres' | 'mongodb';
+    const dbType = isDbType(config.dbType)
+      ? config.dbType
+      : isDbType(session.dbType)
+        ? session.dbType
+        : undefined;
 
     if (
       !databaseUrl ||
@@ -161,7 +170,10 @@ export class ChatDatabaseService {
     };
 
     // Re-build graph with shared checkpointer — schema node won't re-run on resume
-    const dbAgent: CompiledGraph = this.langgraphService.initDatabaseGraph();
+    const dbAgent: CompiledGraph = this.langgraphService.initDatabaseGraph(
+      '',
+      DbType.MONGODB,
+    );
 
     // Resume with the decision using Command pattern
     const result = await dbAgent.invoke(

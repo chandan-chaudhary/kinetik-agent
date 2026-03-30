@@ -9,6 +9,12 @@ import {
   encryptAesGcm,
   decryptAesGcm,
 } from '@/common/crypto.util';
+import {
+  DbType,
+  type LlmProvider,
+  isDbType,
+  isLlmProvider,
+} from '@/types/chat-config.types';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -19,10 +25,10 @@ export interface ChatMessage {
 
 export interface CreateSessionDto {
   title?: string;
-  dbType?: string;
+  dbType?: DbType;
   databaseUrl?: string;
   llmCredentialId?: string;
-  llmProvider?: string;
+  llmProvider?: LlmProvider;
   llmModel?: string;
   llmApiKey?: string;
 }
@@ -30,10 +36,10 @@ export interface CreateSessionDto {
 export interface UpdateSessionDto {
   title?: string;
   messages?: ChatMessage[];
-  dbType?: string;
+  dbType?: DbType;
   databaseUrl?: string;
   llmCredentialId?: string;
-  llmProvider?: string;
+  llmProvider?: LlmProvider;
   llmModel?: string;
   llmApiKey?: string;
 }
@@ -42,9 +48,10 @@ type ChatSessionOutput = Omit<
   ChatSession,
   'databaseUrl' | 'llmApiKey' | 'messages'
 > & {
+  dbType: DbType;
   databaseUrl: string | null;
   llmCredentialId: string | null;
-  llmProvider: string | null;
+  llmProvider: LlmProvider | null;
   llmModel: string | null;
   llmApiKey: string | null;
   messages: ChatMessage[];
@@ -85,7 +92,7 @@ export class ChatSessionService {
         userId,
         title: dto.title || 'New Chat',
         threadId,
-        dbType: dto.dbType || 'postgres',
+        dbType: dto.dbType || DbType.POSTGRES,
         databaseUrl: dto.databaseUrl
           ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
           : null,
@@ -117,7 +124,10 @@ export class ChatSessionService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return sessions;
+    return sessions.map((session) => ({
+      ...session,
+      dbType: isDbType(session.dbType) ? session.dbType : DbType.POSTGRES,
+    }));
   }
 
   async findOne(id: string, userId: string): Promise<ChatSessionOutput> {
@@ -231,10 +241,10 @@ export class ChatSessionService {
       typeof sessionRecord.llmCredentialId === 'string'
         ? sessionRecord.llmCredentialId
         : null;
-    const llmProvider =
-      typeof sessionRecord.llmProvider === 'string'
-        ? sessionRecord.llmProvider
-        : null;
+    const llmProvider = isLlmProvider(sessionRecord.llmProvider)
+      ? sessionRecord.llmProvider
+      : null;
+    const dbType = isDbType(session.dbType) ? session.dbType : DbType.POSTGRES;
     const llmModel =
       typeof sessionRecord.llmModel === 'string'
         ? sessionRecord.llmModel
@@ -246,6 +256,7 @@ export class ChatSessionService {
 
     return {
       ...session,
+      dbType,
       messages: this.parseMessages(session.messages),
       databaseUrl: session.databaseUrl
         ? decryptAesGcm(session.databaseUrl, this.encryptionKey)

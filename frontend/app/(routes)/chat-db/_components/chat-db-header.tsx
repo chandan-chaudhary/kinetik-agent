@@ -26,24 +26,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCredentials } from "@/hooks/useCredentials";
 import { type DBChatConfig } from "@/hooks/useChatDB";
-
-const LLM_PROVIDERS = ["groq", "google", "google-genai", "ollama"] as const;
-type LlmProvider = (typeof LLM_PROVIDERS)[number];
-
-const DB_TYPES = ["postgres", "mongodb"] as const;
-type DbType = (typeof DB_TYPES)[number];
-
-const DEFAULT_MODELS: Record<LlmProvider, string> = {
-  groq: "llama-3.3-70b-versatile",
-  google: "gemini-1.5-flash",
-  "google-genai": "gemini-1.5-flash",
-  ollama: "llama3.2",
-};
-
-const DB_PLACEHOLDERS: Record<DbType, string> = {
-  postgres: "postgresql://user:password@localhost:5432/dbname",
-  mongodb: "mongodb://user:password@localhost:27017/dbname",
-};
+import {
+  DB_PLACEHOLDERS,
+  DB_TYPES,
+  DEFAULT_MODELS,
+  DEFAULT_DB_TYPE,
+  type LlmProvider,
+  LlmProvider as LlmProviderEnum,
+  isDbType,
+  isLlmProvider,
+} from "@/lib/types/chat-config";
 
 type ConfigStatus = {
   config: DBChatConfig;
@@ -60,13 +52,9 @@ type ParsedCredentialPreview = {
 function parseCredentialPreview(preview?: string): ParsedCredentialPreview {
   if (!preview) return {};
 
-  const [providerRaw, modelRaw] = preview
-    .split("/")
-    .map((part) => part.trim());
+  const [providerRaw, modelRaw] = preview.split("/").map((part) => part.trim());
 
-  const provider = LLM_PROVIDERS.includes(providerRaw as LlmProvider)
-    ? (providerRaw as LlmProvider)
-    : undefined;
+  const provider = isLlmProvider(providerRaw) ? providerRaw : undefined;
 
   const model = modelRaw && modelRaw !== "—" ? modelRaw : undefined;
 
@@ -100,9 +88,15 @@ export function ChatDbHeader({
   const [settingsSaved, setSettingsSaved] = useState(initialSaved);
   const [showApiKey, setShowApiKey] = useState(false);
   const [config, setConfig] = useState<DBChatConfig>({
-    dbType: initialConfig?.dbType ?? "postgres",
+    dbType:
+      initialConfig?.dbType && isDbType(initialConfig.dbType)
+        ? initialConfig.dbType
+        : DEFAULT_DB_TYPE,
     databaseUrl: initialConfig?.databaseUrl ?? "",
-    llmProvider: initialConfig?.llmProvider as LlmProvider | undefined,
+    llmProvider:
+      initialConfig?.llmProvider && isLlmProvider(initialConfig.llmProvider)
+        ? initialConfig.llmProvider
+        : undefined,
     model: initialConfig?.model ?? "",
     apiKey: initialConfig?.apiKey ?? "",
     credentialId: initialConfig?.credentialId,
@@ -155,7 +149,8 @@ export function ChatDbHeader({
         ...prev,
         credentialId,
         llmProvider: provider,
-        model: previewModel ?? (provider ? DEFAULT_MODELS[provider] : prev.model),
+        model:
+          previewModel ?? (provider ? DEFAULT_MODELS[provider] : prev.model),
         apiKey: "",
       };
     });
@@ -184,7 +179,7 @@ export function ChatDbHeader({
         <SheetTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
             <Settings className="h-4 w-4" />
-            Configure
+            <span className="hidden sm:inline">Configure</span>
           </Button>
         </SheetTrigger>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
@@ -209,9 +204,7 @@ export function ChatDbHeader({
                   onValueChange={(v) => {
                     setSettingsSaved(false);
                     setConfig((prev) => {
-                      const nextType = DB_TYPES.includes(v as DbType)
-                        ? (v as DbType)
-                        : prev.dbType;
+                      const nextType = isDbType(v) ? v : prev.dbType;
                       return {
                         ...prev,
                         dbType: nextType,
@@ -224,8 +217,8 @@ export function ChatDbHeader({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="postgres">PostgreSQL</SelectItem>
-                    <SelectItem value="mongodb">MongoDB</SelectItem>
+                    <SelectItem value={DB_TYPES[0]}>PostgreSQL</SelectItem>
+                    <SelectItem value={DB_TYPES[1]}>MongoDB</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -295,47 +288,54 @@ export function ChatDbHeader({
                         <SelectValue placeholder="Select provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="groq">Groq</SelectItem>
-                        <SelectItem value="google">Google Gemini</SelectItem>
-                        <SelectItem value="ollama">Ollama</SelectItem>
+                        <SelectItem value={LlmProviderEnum.GROQ}>
+                          Groq
+                        </SelectItem>
+                        <SelectItem value={LlmProviderEnum.GOOGLE}>
+                          Google Gemini
+                        </SelectItem>
+                        <SelectItem value={LlmProviderEnum.OLLAMA}>
+                          Ollama
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {config.llmProvider && config.llmProvider !== "ollama" && (
-                    <div className="space-y-2">
-                      <Label>API Key</Label>
-                      <div className="relative">
-                        <Input
-                          type={showApiKey ? "text" : "password"}
-                          value={config.apiKey}
-                          onChange={(e) => {
-                            setSettingsSaved(false);
-                            setConfig((prev) => ({
-                              ...prev,
-                              apiKey: e.target.value,
-                            }));
-                          }}
-                          placeholder={
-                            config.llmProvider === "groq"
-                              ? "gsk_..."
-                              : "AIza..."
-                          }
-                          className="pr-10 font-mono text-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        >
-                          {showApiKey ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
+                  {config.llmProvider &&
+                    config.llmProvider !== LlmProviderEnum.OLLAMA && (
+                      <div className="space-y-2">
+                        <Label>API Key</Label>
+                        <div className="relative">
+                          <Input
+                            type={showApiKey ? "text" : "password"}
+                            value={config.apiKey}
+                            onChange={(e) => {
+                              setSettingsSaved(false);
+                              setConfig((prev) => ({
+                                ...prev,
+                                apiKey: e.target.value,
+                              }));
+                            }}
+                            placeholder={
+                              config.llmProvider === LlmProviderEnum.GROQ
+                                ? "gsk_..."
+                                : "AIza..."
+                            }
+                            className="pr-10 font-mono text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey((v) => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                          >
+                            {showApiKey ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </>
               )}
             </div>

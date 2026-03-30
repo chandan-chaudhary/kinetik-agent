@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Button } from "./ui/button";
-// import { SidebarTrigger } from "./ui/sidebar";
+import { SidebarTrigger } from "./ui/sidebar";
 import Image from "next/image";
 
 export type EntityHeaderProps = {
@@ -32,13 +32,13 @@ export default function EntityHeader({
   return (
     <div className="sticky top-0 z-50 glass border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
-          <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-            {/* <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" /> */}
-            <div className="flex items-start gap-3 sm:items-center">
+        <div className="flex items-center justify-between gap-3 py-3 sm:py-4">
+          <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
+            <SidebarTrigger className="md:hidden hover:bg-muted rounded-lg transition-colors shrink-0" />
+            <div className="flex min-w-0 items-start gap-3 sm:items-center">
               <div className="h-px w-6 bg-border hidden sm:block" />
-              <div>
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight leading-tight">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight leading-tight truncate">
                   {title}
                 </h1>
                 {description && (
@@ -50,7 +50,7 @@ export default function EntityHeader({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex shrink-0 items-center gap-2 justify-end">
             {children}
 
             {onNew && !newButtonHref ? (
@@ -68,7 +68,6 @@ export default function EntityHeader({
                 <span className="hidden sm:inline">
                   {newButtonLabel || "New"}
                 </span>
-                <span className="sm:hidden">New</span>
               </Button>
             ) : null}
 
@@ -88,7 +87,6 @@ export default function EntityHeader({
                   <span className="hidden sm:inline">
                     {newButtonLabel || "New"}
                   </span>
-                  <span className="sm:hidden">New</span>
                 </Link>
               </Button>
             ) : null}
