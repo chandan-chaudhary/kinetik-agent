@@ -1,10 +1,10 @@
 const Footer = () => {
   return (
-    <footer className="bg-foreground text-background py-16">
+    <footer id="contact" className="bg-foreground text-background py-16">
       <div className="container mx-auto px-6">
-        <div className="grid md:grid-cols-4 gap-12">
+        <div className="grid md:grid-cols-3 gap-12">
           <div>
-            <span className="text-2xl font-bold tracking-tight">Kinetik</span>
+            <span className="text-2xl font-bold tracking-tight">KINETIK</span>
             <p className="mt-4 text-background/70 text-sm">
               Empowering businesses with intelligent automation and seamless
               integration.
@@ -16,28 +16,23 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-background/70">
               <li>
                 <a href="#" className="hover:text-background transition-colors">
-                  Features
+                  Database Copilot
                 </a>
               </li>
               <li>
                 <a href="#" className="hover:text-background transition-colors">
-                  Pricing
+                  Workflow Builder
                 </a>
               </li>
               <li>
                 <a href="#" className="hover:text-background transition-colors">
-                  Integrations
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-background transition-colors">
-                  API
+                  Credential Vault
                 </a>
               </li>
             </ul>
           </div>
 
-          <div>
+          {/* <div>
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm text-background/70">
               <li>
@@ -45,11 +40,7 @@ const Footer = () => {
                   About
                 </a>
               </li>
-              <li>
-                <a href="#" className="hover:text-background transition-colors">
-                  Blog
-                </a>
-              </li>
+              
               <li>
                 <a href="#" className="hover:text-background transition-colors">
                   Careers
@@ -61,7 +52,7 @@ const Footer = () => {
                 </a>
               </li>
             </ul>
-          </div>
+          </div> */}
 
           <div>
             <h4 className="font-semibold mb-4">Legal</h4>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Sidebar,
@@ -14,16 +13,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Workflow,
-  Activity,
-  Home,
-  KeyIcon,
-  // Settings,
-  Database,
-} from "lucide-react";
+import { Workflow, Activity, Home, KeyIcon, Database } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { UserDisplay } from "@/components/UserDisplay";
+import BrandLockup from "@/app/_components/BrandLockup";
 
 const navigationItems = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -32,8 +25,6 @@ const navigationItems = [
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/credentials", label: "Credentials", icon: KeyIcon },
 ];
-
-// const footerItems = [{ href: "/settings", label: "Settings", icon: Settings }];
 
 export default function AppSidebar() {
   const pathname = usePathname();
@@ -45,25 +36,11 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div
-          className={`flex items-center px-4 py-4 ${isExpanded ? "justify-between" : "justify-center"}`}
+          className={`flex items-center px-3 py-3 ${isExpanded ? "justify-between" : "justify-center"}`}
         >
           {isExpanded && (
             <Link href="/" className="flex items-center gap-3 min-w-0">
-              <Image
-                src="/kinetik-application-logo.png"
-                alt="Kinetik Logo"
-                width={36}
-                height={36}
-                className="w-9 h-9"
-              />
-              <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground tracking-tight">
-                  KINETIK
-                </span>
-                <span className="text-xs text-sidebar-foreground/60">
-                  AI in Motion
-                </span>
-              </div>
+              <BrandLockup variant="mobile" />
             </Link>
           )}
           <SidebarTrigger className="hover:bg-muted rounded-lg transition-colors shrink-0" />
@@ -110,27 +87,6 @@ export default function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border mt-auto">
         <UserDisplay user={user} isLoading={isLoading} />
-
-        {/* Footer Menu Items */}
-        {/* <SidebarMenu className="px-2 py-2 space-y-1">
-          {footerItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  className="px-3 py-2.5 rounded-lg hover:bg-sidebar-accent/50 text-sidebar-foreground/80 hover:text-sidebar-foreground transition-all duration-200"
-                >
-                  <Link href={item.href} className="flex items-center gap-3">
-                    <Icon className="h-4 w-4" />
-                    {state === "expanded" && <span>{item.label}</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu> */}
       </SidebarFooter>
     </Sidebar>
   );

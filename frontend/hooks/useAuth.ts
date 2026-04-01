@@ -27,6 +27,7 @@ interface User {
   userId: string;
   email: string;
   name?: string;
+  avatarUrl?: string;
 }
 
 export const useAuth = () => {
@@ -128,12 +129,40 @@ export const useAuth = () => {
       toast.error(message);
     }
   };
+
+  const deleteAccount = async (): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const response = await axios.delete(
+        `${API_BASE_URL}auth/delete-account`,
+        {
+          withCredentials: true,
+        },
+      );
+
+      if (response.status === 200) {
+        toast.success("Account deleted successfully.");
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Failed to delete account";
+      toast.error(message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     register,
     login,
     getProfile,
     updatePassword,
     logout,
+    deleteAccount,
     isLoading,
   };
 };

@@ -4,6 +4,7 @@ import {
   Body,
   Req,
   Get,
+  Delete,
   UseGuards,
   Res,
   Inject,
@@ -125,5 +126,26 @@ export class AuthController {
       domain: process.env.COOKIE_DOMAIN || undefined,
     });
     return { message: 'Logged out successfully' };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('delete-account')
+  async deleteAccount(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = request.user!;
+
+    const result = await this.authService.deleteAccount(user.userId);
+
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    });
+
+    return result;
   }
 }

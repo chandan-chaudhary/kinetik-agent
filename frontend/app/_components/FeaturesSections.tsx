@@ -1,38 +1,26 @@
-'use client'
+"use client";
 
 import { motion } from "framer-motion";
-import { Bot, Zap, Shield, Workflow, LineChart, Users } from "lucide-react";
+import { Database, Workflow, KeyRound } from "lucide-react";
 
 const features = [
   {
-    icon: Bot,
-    title: "AI-Powered Automation",
-    description: "Deploy intelligent agents that learn and adapt to your business processes.",
-  },
-  {
-    icon: Zap,
-    title: "Real-time Processing",
-    description: "Lightning-fast data processing with instant insights and actions.",
-  },
-  {
-    icon: Shield,
-    title: "Enterprise Security",
-    description: "Bank-grade security with end-to-end encryption and compliance.",
+    icon: Database,
+    title: "Database Copilot",
+    description:
+      "Query SQL and MongoDB data in natural language and get actionable responses without manual query writing.",
   },
   {
     icon: Workflow,
-    title: "Seamless Integration",
-    description: "Connect with 200+ tools and platforms in your existing workflow.",
+    title: "Workflow Builder",
+    description:
+      "Design visual automations with node-based flows to trigger actions and orchestrate business logic.",
   },
   {
-    icon: LineChart,
-    title: "Advanced Analytics",
-    description: "Deep insights and predictive analytics powered by machine learning.",
-  },
-  {
-    icon: Users,
-    title: "Team Collaboration",
-    description: "Built for teams with roles, permissions, and shared workspaces.",
+    icon: KeyRound,
+    title: "Credential Vault",
+    description:
+      "Securely store and manage LLM, database, and external API credentials for safe workflow execution.",
   },
 ];
 
@@ -48,14 +36,14 @@ const FeaturesSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Our AI Intelligent Features
+            Built For What You Use Today
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Powerful capabilities designed to transform your business operations
+            Core capabilities available now in your Kinetik workspace
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
@@ -71,9 +59,7 @@ const FeaturesSection = () => {
               <h3 className="text-xl font-semibold text-foreground mb-3">
                 {feature.title}
               </h3>
-              <p className="text-muted-foreground">
-                {feature.description}
-              </p>
+              <p className="text-muted-foreground">{feature.description}</p>
             </motion.div>
           ))}
         </div>

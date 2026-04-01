@@ -233,7 +233,7 @@ const HeroSection = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>Database Integration</span>
+                <span>Database Copilot</span>
               </div>
               <div className="flex items-center gap-2">
                 <svg

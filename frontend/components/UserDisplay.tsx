@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  User as UserIcon,
-  LogOut,
-  Settings,
-  Home,
-  ChevronDown,
-} from "lucide-react";
+import { LogOut, Settings, Home, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/contexts/UserContext";
 import {
@@ -16,11 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { UserAvatar } from "@/components/UserAvatar";
 
 interface User {
   userId: string;
   email: string;
   name?: string;
+  avatarUrl?: string;
 }
 
 interface UserDisplayProps {
@@ -68,9 +64,13 @@ export function UserDisplay({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2 hover:bg-accent rounded-md px-3 py-2 transition-colors">
-            <div className="w-8 h-8 bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-              <UserIcon className="w-4 h-4 text-white" />
-            </div>
+            <UserAvatar
+              size="sm"
+              name={user.name}
+              email={user.email}
+              userId={user.userId}
+              avatarUrl={user.avatarUrl}
+            />
             <div className="hidden sm:flex flex-col items-start">
               <span className="text-sm font-medium text-foreground">
                 {user.name || user.email.split("@")[0]}
@@ -103,9 +103,13 @@ export function UserDisplay({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent rounded-md p-2 transition-colors">
-            <div className="w-10 h-10 bg-linear-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-              <UserIcon className="w-5 h-5 text-white" />
-            </div>
+            <UserAvatar
+              size="md"
+              name={user.name}
+              email={user.email}
+              userId={user.userId}
+              avatarUrl={user.avatarUrl}
+            />
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user.name || user.email.split("@")[0]}

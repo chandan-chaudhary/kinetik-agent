@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -43,6 +42,7 @@ import {
 } from "lucide-react";
 import { UserDisplay } from "@/components/UserDisplay";
 import { useUser } from "@/contexts/UserContext";
+import BrandLockup from "@/app/_components/BrandLockup";
 
 type SidebarNavItem = {
   key: string;
@@ -65,9 +65,7 @@ interface ChatDbSidebarProps {
 }
 
 export function ChatDbSidebar({
-  // sessions,
   activeSessionId,
-  // isLoading = false,
   isCreating = false,
   onNewChat,
   onSelectSession,
@@ -130,27 +128,13 @@ export function ChatDbSidebar({
       <SidebarHeader className="border-b border-sidebar-border">
         <div
           className={cn(
-            "flex items-center px-3 py-4",
+            "flex items-center px-3 py-3",
             isExpanded ? "justify-between gap-3" : "justify-center",
           )}
         >
-         {isExpanded && (
+          {isExpanded && (
             <Link href="/" className="flex items-center gap-3 min-w-0">
-              <Image
-                src="/kinetik-application-logo.png"
-                alt="Kinetik Logo"
-                width={36}
-                height={36}
-                className="w-9 h-9"
-              />
-              <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground tracking-tight">
-                  KINETIK
-                </span>
-                <span className="text-xs text-sidebar-foreground/60">
-                  AI in Motion
-                </span>
-              </div>
+              <BrandLockup variant="mobile" />
             </Link>
           )}
 
@@ -199,7 +183,6 @@ export function ChatDbSidebar({
                             className={cn(
                               "h-4 w-4 text-sidebar-foreground/70",
                               isActive && "text-primary",
-                              item.key === "new-chat" && "text-primary",
                             )}
                           />
                           {isExpanded && <span>{item.label}</span>}
@@ -210,7 +193,6 @@ export function ChatDbSidebar({
                             className={cn(
                               "h-4 w-4 text-sidebar-foreground/70",
                               isActive && "text-primary",
-                              item.key === "new-chat" && "text-primary",
                             )}
                           />
                           {isExpanded && <span>{item.label}</span>}

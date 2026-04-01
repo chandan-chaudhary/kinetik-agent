@@ -12,7 +12,7 @@ export default function WorkflowLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const hideSidebar = Boolean(pathname?.match(/^\/chat-db\/(.+)/));
+  const hideSidebar = pathname?.startsWith("/chat-db") ?? false;
 
   if (hideSidebar) {
     return <AuthGuard>{children}</AuthGuard>;

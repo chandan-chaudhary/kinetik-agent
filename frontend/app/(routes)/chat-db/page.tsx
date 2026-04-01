@@ -128,9 +128,9 @@ export default function ChatDBListPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          {/* <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <MessageSquare className="h-4 w-4" />
-                          </span>
+                          </span> */}
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold leading-tight line-clamp-1">

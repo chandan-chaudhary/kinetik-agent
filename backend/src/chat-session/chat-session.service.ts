@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import credentialsConfig from '@/config/credentials.config';
 import type { ConfigType } from '@nestjs/config';
@@ -15,6 +15,7 @@ import {
   isDbType,
   isLlmProvider,
 } from '@/types/chat-config.types';
+import { createError, customError } from '@/common/customError';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -86,67 +87,108 @@ export class ChatSessionService {
     userId: string,
     dto: CreateSessionDto,
   ): Promise<ChatSessionOutput> {
-    const threadId = `chat_${uuidv4()}`;
-    const session = await this.prisma.chatSession.create({
-      data: {
-        userId,
-        title: dto.title || 'New Chat',
-        threadId,
-        dbType: dto.dbType || DbType.POSTGRES,
-        databaseUrl: dto.databaseUrl
-          ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
-          : null,
-        llmCredentialId: dto.llmCredentialId || null,
-        llmProvider: dto.llmProvider || null,
-        llmModel: dto.llmModel || null,
-        llmApiKey: dto.llmApiKey
-          ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
-          : null,
-        messages: [] as Prisma.InputJsonValue,
-      },
-    });
-    return this.toOutput(session);
+    try {
+      const threadId = `chat_${uuidv4()}`;
+      const session = await this.prisma.chatSession.create({
+        data: {
+          userId,
+          title: dto.title || 'New Chat',
+          threadId,
+          dbType: dto.dbType || DbType.POSTGRES,
+          databaseUrl: dto.databaseUrl
+            ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
+            : null,
+          llmCredentialId: dto.llmCredentialId || null,
+          llmProvider: dto.llmProvider || null,
+          llmModel: dto.llmModel || null,
+          llmApiKey: dto.llmApiKey
+            ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
+            : null,
+          messages: [] as Prisma.InputJsonValue,
+        },
+      });
+      if (!session) {
+        throw createError('Failed to create chat session', {
+          httpStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        });
+      }
+      return this.toOutput(session);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to create chat session',
+      });
+    }
   }
 
   async findAll(userId: string): Promise<ChatSessionSummary[]> {
-    const sessions = await this.prisma.chatSession.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        title: true,
-        threadId: true,
-        dbType: true,
-        // llmCredentialId: true,
-        // llmProvider: true,
-        // llmModel: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-    return sessions.map((session) => ({
-      ...session,
-      dbType: isDbType(session.dbType) ? session.dbType : DbType.POSTGRES,
-    }));
+    try {
+      const sessions = await this.prisma.chatSession.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          title: true,
+          threadId: true,
+          dbType: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (!sessions) {
+        throw createError('Failed to retrieve chat sessions', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+      return sessions.map((session) => ({
+        ...session,
+        dbType: isDbType(session.dbType) ? session.dbType : DbType.POSTGRES,
+      }));
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to retrieve chat sessions',
+      });
+    }
   }
 
   async findOne(id: string, userId: string): Promise<ChatSessionOutput> {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { id, userId },
-    });
-    if (!session) throw new NotFoundException('Chat session not found');
-    return this.toOutput(session);
+    try {
+      const session = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+      });
+      if (!session)
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      return this.toOutput(session);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to retrieve chat session',
+      });
+    }
   }
 
   async findByThreadId(
     threadId: string,
     userId: string,
   ): Promise<ChatSessionOutput> {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { threadId, userId },
-    });
-    if (!session) throw new NotFoundException('Chat session not found');
-    return this.toOutput(session);
+    try {
+      const session = await this.prisma.chatSession.findFirst({
+        where: { threadId, userId },
+      });
+      if (!session)
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      return this.toOutput(session);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to retrieve chat session by thread ID',
+      });
+    }
   }
 
   async appendMessage(
@@ -154,34 +196,45 @@ export class ChatSessionService {
     userId: string,
     message: ChatMessage,
   ): Promise<ChatSessionOutput> {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { id, userId },
-    });
-    if (!session) throw new NotFoundException('Chat session not found');
+    try {
+      const session = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+      });
+      if (!session) {
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
 
-    const messages = this.parseMessages(session.messages);
-    messages.push(message);
+      const messages = this.parseMessages(session.messages);
+      messages.push(message);
 
-    // Auto-generate title from first user message
-    const isFirstUserMessage =
-      message.role === 'user' &&
-      messages.filter((m) => m.role === 'user').length === 1;
+      // Auto-generate title from first user message
+      const isFirstUserMessage =
+        message.role === 'user' &&
+        messages.filter((m) => m.role === 'user').length === 1;
 
-    const updateData: Prisma.ChatSessionUpdateInput = {
-      messages: messages as unknown as Prisma.InputJsonValue,
-    };
-    if (isFirstUserMessage) {
-      updateData.title =
-        message.content.length > 50
-          ? `${message.content.slice(0, 50)}...`
-          : message.content;
+      const updateData: Prisma.ChatSessionUpdateInput = {
+        messages: messages as unknown as Prisma.InputJsonValue,
+      };
+      if (isFirstUserMessage) {
+        updateData.title =
+          message.content.length > 50
+            ? `${message.content.slice(0, 50)}...`
+            : message.content;
+      }
+
+      const updated = await this.prisma.chatSession.update({
+        where: { id },
+        data: updateData,
+      });
+      return this.toOutput(updated);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to append message to chat session',
+      });
     }
-
-    const updated = await this.prisma.chatSession.update({
-      where: { id },
-      data: updateData,
-    });
-    return this.toOutput(updated);
   }
 
   async update(
@@ -189,50 +242,72 @@ export class ChatSessionService {
     userId: string,
     dto: UpdateSessionDto,
   ): Promise<ChatSessionOutput> {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { id, userId },
-    });
-    if (!session) throw new NotFoundException('Chat session not found');
+    try {
+      const session = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+      });
+      if (!session) {
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
 
-    const updateData: Prisma.ChatSessionUpdateInput = {
-      title: dto.title,
-      dbType: dto.dbType,
-      databaseUrl:
-        dto.databaseUrl !== undefined
-          ? dto.databaseUrl
-            ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
-            : null
+      const updateData: Prisma.ChatSessionUpdateInput = {
+        title: dto.title,
+        dbType: dto.dbType,
+        databaseUrl:
+          dto.databaseUrl !== undefined
+            ? dto.databaseUrl
+              ? encryptAesGcm(dto.databaseUrl, this.encryptionKey)
+              : null
+            : undefined,
+        llmCredentialId: dto.llmCredentialId,
+        llmProvider:
+          dto.llmProvider !== undefined ? dto.llmProvider || null : undefined,
+        llmModel: dto.llmModel !== undefined ? dto.llmModel || null : undefined,
+        llmApiKey:
+          dto.llmApiKey !== undefined
+            ? dto.llmApiKey
+              ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
+              : null
+            : undefined,
+        messages: dto.messages
+          ? (dto.messages as unknown as Prisma.InputJsonValue)
           : undefined,
-      llmCredentialId: dto.llmCredentialId,
-      llmProvider:
-        dto.llmProvider !== undefined ? dto.llmProvider || null : undefined,
-      llmModel: dto.llmModel !== undefined ? dto.llmModel || null : undefined,
-      llmApiKey:
-        dto.llmApiKey !== undefined
-          ? dto.llmApiKey
-            ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
-            : null
-          : undefined,
-      messages: dto.messages
-        ? (dto.messages as unknown as Prisma.InputJsonValue)
-        : undefined,
-    };
+      };
 
-    const updated = await this.prisma.chatSession.update({
-      where: { id },
-      data: updateData,
-    });
-    return this.toOutput(updated);
+      const updated = await this.prisma.chatSession.update({
+        where: { id },
+        data: updateData,
+      });
+      return this.toOutput(updated);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to update chat session',
+      });
+    }
   }
 
   async remove(id: string, userId: string) {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!session) throw new NotFoundException('Chat session not found');
-    await this.prisma.chatSession.delete({ where: { id } });
-    return { success: true };
+    try {
+      const session = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+        select: { id: true },
+      });
+      if (!session) {
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+      await this.prisma.chatSession.delete({ where: { id } });
+      return { success: true };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to remove chat session',
+      });
+    }
   }
 
   private toOutput(session: ChatSession): ChatSessionOutput {

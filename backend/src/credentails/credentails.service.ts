@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { PrismaService } from '@/database/prisma.service';
 import { CredentialType } from '@prisma/client';
 import credentialsConfig from '@/config/credentials.config';
+import { createError, customError, ERROR_CODE } from '@/common/customError';
 import {
   deriveAesGcmKey,
   encryptAesGcm,
@@ -31,58 +32,102 @@ export class CredentailsService {
       isActive?: boolean;
     },
   ) {
-    const encryptedData = this.encrypt(JSON.stringify(dto.data));
+    try {
+      const encryptedData = this.encrypt(JSON.stringify(dto.data));
 
-    return this.prisma.credential.create({
-      data: {
-        userId,
-        name: dto.name.trim(),
-        type: dto.type as CredentialType,
-        data: encryptedData,
-        isActive: dto.isActive ?? true,
-      },
-    });
+      const credential = await this.prisma.credential.create({
+        data: {
+          userId,
+          name: dto.name.trim(),
+          type: dto.type as CredentialType,
+          data: encryptedData,
+          isActive: dto.isActive ?? true,
+        },
+      });
+      if (!credential) {
+        throw createError('Failed to create credential', {
+          code: ERROR_CODE.INTERNAL_ERROR,
+          httpStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        });
+      }
+
+      return {
+        id: credential.id,
+        name: credential.name,
+        type: credential.type,
+        isActive: credential.isActive,
+        createdAt: credential.createdAt,
+        updatedAt: credential.updatedAt,
+        data: credential.data,
+        preview: this.extractPreview(credential.data, credential.type),
+      };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to create credential',
+      });
+    }
   }
 
   // Retrieve — decrypt and return typed fields
   async findAll(userId: string, type?: CredentialType) {
-    const rows = await this.prisma.credential.findMany({
-      where: { userId, ...(type ? { type } : {}) },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      // Return encrypted blob as-is for display (frontend decrypts for reveal)
-      data: row.data,
-      // Expose provider for display without decrypting everything
-      preview: this.extractPreview(row.data, row.type),
-    }));
+    try {
+      const rows = await this.prisma.credential.findMany({
+        where: { userId, ...(type ? { type } : {}) },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (!rows) {
+        throw createError('Failed to retrieve credentials', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        isActive: row.isActive,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        // Return encrypted blob as-is for display (frontend decrypts for reveal)
+        data: row.data,
+        // Expose provider for display without decrypting everything
+        preview: this.extractPreview(row.data, row.type),
+      }));
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to retrieve credentials',
+      });
+    }
   }
 
   async findOne(id: string, userId: string) {
-    const row = await this.prisma.credential.findFirst({
-      where: { id, userId },
-    });
-    if (!row) {
-      throw new NotFoundException('Credential not found');
-    }
+    try {
+      const row = await this.prisma.credential.findFirst({
+        where: { id, userId },
+      });
+      if (!row) {
+        throw createError('Credential not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
 
-    return {
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      data: row.data,
-      preview: this.extractPreview(row.data, row.type),
-    };
+      return {
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        isActive: row.isActive,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        data: row.data,
+        preview: this.extractPreview(row.data, row.type),
+      };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to retrieve credential',
+      });
+    }
   }
 
   async update(
@@ -95,53 +140,69 @@ export class CredentailsService {
       isActive?: boolean;
     },
   ) {
-    const existing = await this.prisma.credential.findFirst({
-      where: { id, userId },
-    });
+    try {
+      const existing = await this.prisma.credential.findFirst({
+        where: { id, userId },
+      });
 
-    if (!existing) {
-      throw new NotFoundException('Credential not found');
+      if (!existing) {
+        throw createError('Credential not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+
+      const dataToStore = dto.data
+        ? this.encrypt(JSON.stringify(dto.data))
+        : undefined;
+
+      const updated = await this.prisma.credential.update({
+        where: { id },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.type !== undefined ? { type: dto.type } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(dataToStore !== undefined ? { data: dataToStore } : {}),
+        },
+      });
+
+      return {
+        id: updated.id,
+        name: updated.name,
+        type: updated.type,
+        isActive: updated.isActive,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+        data: updated.data,
+        preview: this.extractPreview(updated.data, updated.type),
+      };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to update credential',
+      });
     }
-
-    const dataToStore = dto.data
-      ? this.encrypt(JSON.stringify(dto.data))
-      : undefined;
-
-    const updated = await this.prisma.credential.update({
-      where: { id },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.type !== undefined ? { type: dto.type } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dataToStore !== undefined ? { data: dataToStore } : {}),
-      },
-    });
-
-    return {
-      id: updated.id,
-      name: updated.name,
-      type: updated.type,
-      isActive: updated.isActive,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-      data: updated.data,
-      preview: this.extractPreview(updated.data, updated.type),
-    };
   }
 
   // Used internally by nodes — returns decrypted fields
   async resolveById(
     credentialId: string,
   ): Promise<Record<string, unknown> | null> {
-    const row = await this.prisma.credential.findFirst({
-      where: { id: credentialId, isActive: true },
-    });
-    if (!row) return null;
-
     try {
-      return JSON.parse(this.decrypt(row.data)) as Record<string, unknown>;
-    } catch {
-      return null;
+      const row = await this.prisma.credential.findFirst({
+        where: { id: credentialId, isActive: true },
+      });
+      if (!row) return null;
+
+      try {
+        return JSON.parse(this.decrypt(row.data)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to resolve credential',
+      });
     }
   }
 
@@ -175,17 +236,27 @@ export class CredentailsService {
   }
 
   async remove(id: string, userId: string) {
-    const existing = await this.prisma.credential.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
+    try {
+      const existing = await this.prisma.credential.findFirst({
+        where: { id, userId },
+        select: { id: true },
+      });
 
-    if (!existing) {
-      throw new NotFoundException('Credential not found');
+      if (!existing) {
+        throw createError('Credential not found', {
+          code: ERROR_CODE.NOT_FOUND,
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+
+      await this.prisma.credential.delete({ where: { id } });
+      return { success: true };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to remove credential',
+      });
     }
-
-    await this.prisma.credential.delete({ where: { id } });
-    return { success: true };
   }
 
   private encrypt(value: string): string {

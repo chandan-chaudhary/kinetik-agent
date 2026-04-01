@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { RSI } from 'technicalindicators';
 import Alpaca from '@alpacahq/alpaca-trade-api';
 import marketApiConfig from '@/config/market-api.config';
@@ -10,6 +10,7 @@ import { ElementHandle } from 'playwright';
 import { LlmService } from '@/llm/llm.service';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { marketSystemPrompt } from './marketPrompt';
+import { createError, customError } from '@/common/customError';
 // 1. Define strict interfaces for type safety
 export interface MarketDataResult {
   ticker: string;
@@ -56,7 +57,10 @@ export class TradingNodeService {
       return assets;
     } catch (error) {
       this.logger.error(`Failed to fetch assets: ${error}`);
-      throw error;
+      throw customError(error, {
+        fallbackStatus: HttpStatus.SERVICE_UNAVAILABLE,
+        fallbackMessage: 'Failed to fetch assets',
+      });
     }
   }
 
@@ -87,34 +91,43 @@ export class TradingNodeService {
     nodeData: Record<string, unknown> = {},
   ): GraphNode<typeof marketSchema> {
     return async (state: typeof marketSchema.State) => {
-      const configuredTicker =
-        (nodeData.searchTicker as string | undefined) ||
-        (nodeData.ticker as string | undefined) ||
-        state.userQuery?.ticker;
-      const configuredType =
-        (nodeData.searchType as string | undefined) ||
-        (nodeData.type as string | undefined) ||
-        state.userQuery?.type;
-      const alpacaClient = this.buildAlpacaClient(nodeData);
+      try {
+        const configuredTicker =
+          (nodeData.searchTicker as string | undefined) ||
+          (nodeData.ticker as string | undefined) ||
+          state.userQuery?.ticker;
+        const configuredType =
+          (nodeData.searchType as string | undefined) ||
+          (nodeData.type as string | undefined) ||
+          state.userQuery?.type;
+        const alpacaClient = this.buildAlpacaClient(nodeData);
 
-      if (!configuredTicker) {
-        throw new Error('Ticker is required in node data or user query');
-      }
+        if (!configuredTicker) {
+          throw createError('Ticker is required in node data or user query', {
+            httpStatus: HttpStatus.BAD_REQUEST,
+          });
+        }
 
-      const isCrypto = configuredType === 'crypto';
-      if (isCrypto) {
-        const result = await this.getCryptoMarketData({
-          ticker: configuredTicker,
-          alpacaClient,
+        const isCrypto = configuredType === 'crypto';
+        if (isCrypto) {
+          const result = await this.getCryptoMarketData({
+            ticker: configuredTicker,
+            alpacaClient,
+          });
+          return { marketLiveData: result };
+        } else {
+          const result = await this.getStockMarketData({
+            ticker: configuredTicker,
+            alpacaClient,
+            feed: (nodeData.alpacaFeed as string | undefined) || 'iex',
+          });
+          return { marketLiveData: result };
+        }
+      } catch (error) {
+        throw customError(error, {
+          fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+          fallbackMessage: 'Failed to fetch market data',
         });
-        return { marketLiveData: result };
-      } else {
-        const result = await this.getStockMarketData({
-          ticker: configuredTicker,
-          alpacaClient,
-          feed: (nodeData.alpacaFeed as string | undefined) || 'iex',
-        });
-        return { marketLiveData: result };
       }
     };
   }
@@ -168,7 +181,9 @@ export class TradingNodeService {
         }
 
         if (!searchInput) {
-          throw new Error('Could not find visible search input');
+          throw createError('Could not find visible search input', {
+            httpStatus: HttpStatus.NOT_FOUND,
+          });
         }
 
         // Click and fill the search input
@@ -248,7 +263,10 @@ export class TradingNodeService {
           // Ignore
         }
 
-        return { news: [] };
+        throw customError(e, {
+          fallbackStatus: HttpStatus.SERVICE_UNAVAILABLE,
+          fallbackMessage: 'Failed to scrape market news',
+        });
       } finally {
         await browser.close();
       }
@@ -294,8 +312,11 @@ export class TradingNodeService {
       }
 
       if (closePrices.length < 14) {
-        throw new Error(
+        throw createError(
           `Insufficient data for RSI calculation (needed 14, got ${closePrices.length})`,
+          {
+            httpStatus: HttpStatus.BAD_REQUEST,
+          },
         );
       }
 
@@ -318,7 +339,10 @@ export class TradingNodeService {
       };
     } catch (error) {
       this.logger.error(`Failed to fetch market data for ${ticker}: ${error}`);
-      throw error;
+      throw customError(error, {
+        fallbackStatus: HttpStatus.SERVICE_UNAVAILABLE,
+        fallbackMessage: `Failed to fetch market data for ${ticker}`,
+      });
     }
   }
   async getCryptoMarketData({
@@ -343,7 +367,9 @@ export class TradingNodeService {
       const snapshot = snapshots.get(cryptoPair);
 
       if (!snapshot) {
-        throw new Error(`No snapshot data found for ${cryptoPair}`);
+        throw createError(`No snapshot data found for ${cryptoPair}`, {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
       }
       const CryptoOptions = {
         start: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
@@ -370,8 +396,11 @@ export class TradingNodeService {
       );
 
       if (closePrices.length < 14) {
-        throw new Error(
+        throw createError(
           `Insufficient data for RSI calculation (needed 14, got ${closePrices.length})`,
+          {
+            httpStatus: HttpStatus.BAD_REQUEST,
+          },
         );
       }
 
@@ -382,13 +411,17 @@ export class TradingNodeService {
       });
 
       if (!rsiValues || rsiValues.length === 0) {
-        throw new Error('RSI calculation returned no values');
+        throw createError('RSI calculation returned no values', {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       const currentRsi = rsiValues[rsiValues.length - 1];
 
       if (currentRsi === undefined || isNaN(currentRsi)) {
-        throw new Error(`Invalid RSI value: ${currentRsi}`);
+        throw createError(`Invalid RSI value: ${currentRsi}`, {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       this.logger.log(`Calculated RSI: ${currentRsi}`);
@@ -408,7 +441,10 @@ export class TradingNodeService {
       this.logger.error(
         `Failed to fetch crypto market data for ${ticker}: ${error}`,
       );
-      throw error;
+      throw customError(error, {
+        fallbackStatus: HttpStatus.SERVICE_UNAVAILABLE,
+        fallbackMessage: `Failed to fetch crypto market data for ${ticker}`,
+      });
     }
   }
 
@@ -416,17 +452,18 @@ export class TradingNodeService {
     state: typeof marketSchema.State,
     nodeData: Record<string, unknown> = {},
   ): Promise<Partial<MarketStateType>> {
-    const newsContent = state?.news?.content as string;
-    const marketData = state?.marketLiveData as MarketDataResult; // Your interface
+    try {
+      const newsContent = state?.news?.content as string;
+      const marketData = state?.marketLiveData as MarketDataResult; // Your interface
 
-    if (!newsContent || !marketData) {
-      this.logger.warn('Insufficient data for summary');
-      return { summarised: { result: 'Data missing' } };
-    }
-    this.logger.log('Summarizing market data and news with LLM...');
+      if (!newsContent || !marketData) {
+        this.logger.warn('Insufficient data for summary');
+        return { summarised: { result: 'Data missing' } };
+      }
+      this.logger.log('Summarizing market data and news with LLM...');
 
-    // Convert the object into a readable string for the AI
-    const dataString = `
+      // Convert the object into a readable string for the AI
+      const dataString = `
   --- TECHNICAL DATA ---
   Ticker: ${marketData.ticker}
   Price: $${marketData.price} (${marketData.dailyChange}%)
@@ -435,18 +472,24 @@ export class TradingNodeService {
   --- NEWS CONTENT ---
   ${newsContent}
   `;
-    const nodeInstruction =
-      (nodeData.summaryInstruction as string | undefined) || '';
-    const finalPrompt = nodeInstruction
-      ? `${dataString}\n\n--- EXTRA INSTRUCTION ---\n${nodeInstruction}`
-      : dataString;
-    const systemPrompt = new SystemMessage(marketSystemPrompt);
-    const humanMessage = new HumanMessage(finalPrompt);
-    // Build an LLM instance from nodeData so user-provided API credentials
-    // (provider / model / apiKey) are used instead of the global env default.
-    const llm = await this.llmService.getLLMInstance(nodeData);
-    const result = await llm.invoke([systemPrompt, humanMessage]);
+      const nodeInstruction =
+        (nodeData.summaryInstruction as string | undefined) || '';
+      const finalPrompt = nodeInstruction
+        ? `${dataString}\n\n--- EXTRA INSTRUCTION ---\n${nodeInstruction}`
+        : dataString;
+      const systemPrompt = new SystemMessage(marketSystemPrompt);
+      const humanMessage = new HumanMessage(finalPrompt);
+      // Build an LLM instance from nodeData so user-provided API credentials
+      // (provider / model / apiKey) are used instead of the global env default.
+      const llm = await this.llmService.getLLMInstance(nodeData);
+      const result = await llm.invoke([systemPrompt, humanMessage]);
 
-    return { messages: [result], summarised: result };
+      return { messages: [result], summarised: result };
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to summarize market data',
+      });
+    }
   }
 }

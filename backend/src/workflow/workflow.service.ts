@@ -1,11 +1,7 @@
 import { PrismaService } from '@/database/prisma.service';
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { NodeType, Prisma } from '@prisma/client';
+import { createError, customError } from '@/common/customError';
 
 @Injectable()
 export class WorkflowService {
@@ -13,7 +9,9 @@ export class WorkflowService {
   async create(data: Prisma.WorkflowCreateInput, userId: string) {
     try {
       if (!data.name || data.name.trim() === '') {
-        throw new BadRequestException('Workflow name is required');
+        throw createError('Workflow name is required', {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       const nodes = {
@@ -22,7 +20,7 @@ export class WorkflowService {
         data: {},
       };
 
-      return await this.prisma.workflow.create({
+      const workflow = await this.prisma.workflow.create({
         data: {
           ...data,
           nodes: { create: nodes },
@@ -32,18 +30,23 @@ export class WorkflowService {
           nodes: true,
         },
       });
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
+      if (!workflow) {
+        throw createError('Failed to create workflow', {
+          httpStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        });
       }
-      console.error('Error creating workflow:', error);
-      throw new InternalServerErrorException('Failed to create workflow');
+      return workflow;
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to create workflow',
+      });
     }
   }
 
   async findAll(userId: string) {
     try {
-      return await this.prisma.workflow.findMany({
+      const workflows = await this.prisma.workflow.findMany({
         where: {
           userId: userId, // Replace with actual user ID from auth context
         },
@@ -55,16 +58,26 @@ export class WorkflowService {
           createdAt: 'desc',
         },
       });
+      if (!workflows) {
+        throw createError('No workflows found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+      return workflows;
     } catch (error) {
-      console.error('Error finding all workflows:', error);
-      throw new InternalServerErrorException('Failed to fetch workflows');
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to fetch workflows',
+      });
     }
   }
 
   async findOne(id: string, userId: string) {
     try {
       if (!id || id.trim() === '') {
-        throw new BadRequestException('Workflow ID is required');
+        throw createError('Workflow ID is required', {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       const workflow = await this.prisma.workflow.findUnique({
@@ -76,26 +89,26 @@ export class WorkflowService {
       });
 
       if (!workflow) {
-        throw new NotFoundException(`Workflow with id ${id} not found`);
+        throw createError(`Workflow with id ${id} not found`, {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
       }
 
       return workflow;
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      console.error(`Error finding workflow with id ${id}:`, error);
-      throw new InternalServerErrorException('Failed to fetch workflow');
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to fetch workflow',
+      });
     }
   }
 
   async update(id: string, data: Prisma.WorkflowUpdateInput, userId: string) {
     try {
       if (!id || id.trim() === '') {
-        throw new BadRequestException('Workflow ID is required');
+        throw createError('Workflow ID is required', {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       return await this.prisma.$transaction(async (tx) => {
@@ -106,7 +119,9 @@ export class WorkflowService {
         });
 
         if (!existingWorkflow) {
-          throw new NotFoundException(`Workflow with id ${id} not found`);
+          throw createError(`Workflow with id ${id} not found`, {
+            httpStatus: HttpStatus.NOT_FOUND,
+          });
         }
 
         // Extract nodes and connections from data
@@ -165,21 +180,19 @@ export class WorkflowService {
         });
       });
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      console.error(`Error updating workflow with id ${id}:`, error);
-      throw new InternalServerErrorException('Failed to update workflow');
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to update workflow',
+      });
     }
   }
 
   async remove(id: string, userId: string) {
     try {
       if (!id || id.trim() === '') {
-        throw new BadRequestException('Workflow ID is required');
+        throw createError('Workflow ID is required', {
+          httpStatus: HttpStatus.BAD_REQUEST,
+        });
       }
 
       // Check if workflow exists before deleting
@@ -189,20 +202,18 @@ export class WorkflowService {
       });
 
       if (!workflow) {
-        throw new NotFoundException(`Workflow with id ${id} not found`);
+        throw createError(`Workflow with id ${id} not found`, {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
       }
 
       // Prisma handles cascading deletes automatically if configured
       return await this.prisma.workflow.delete({ where: { id } });
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      console.error(`Error removing workflow with id ${id}:`, error);
-      throw new InternalServerErrorException('Failed to delete workflow');
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to delete workflow',
+      });
     }
   }
 }
