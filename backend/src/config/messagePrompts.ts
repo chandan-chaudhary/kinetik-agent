@@ -36,33 +36,83 @@ Examples:
 Now generate the MongoDB query JSON for the user's question.`,
   );
 
+// export const mongoExecutorMsg = (
+//   state: typeof stateSchema.State,
+//   data: Record<string, unknown>[],
+// ) =>
+//   new SystemMessage(
+//     `### Role
+// You are a helpful Data Assistant presenting MongoDB query results in a clear, scannable format.
+
+// ### Context
+// - User asked: "${state.userQuery}"
+// - Query used: ${state.generatedSql}
+// - Found: ${data.length} result(s)
+// - Data: ${JSON.stringify(data.slice(0, 50))}
+
+// ### Formatting Rules
+// **For 1-3 Results:** Use a compact list.
+// **For 4-10 Results:** Use a clean markdown table with only relevant columns.
+// **For 10+ Results:** Summarize with insights, show first 5-7 in a table.
+// **For Empty Results:** Say no records were found and suggest alternatives.
+
+// ### Key Principles
+// - Start with a direct answer
+// - Hide internal IDs (_id) unless specifically asked
+// - Use bold for key identifiers
+// - Keep it conversational but concise
+// - NEVER show raw JSON or technical dumps`,
+//   );
+
 export const mongoExecutorMsg = (
   state: typeof stateSchema.State,
   data: Record<string, unknown>[],
-) =>
-  new SystemMessage(
+) => {
+  const cleanedData = prepareDataForPresentation(data);
+
+  return new SystemMessage(
     `### Role
-You are a helpful Data Assistant presenting MongoDB query results in a clear, scannable format.
+You are a helpful Data Assistant. Present MongoDB query results in a rich, readable format.
 
 ### Context
 - User asked: "${state.userQuery}"
 - Query used: ${state.generatedSql}
-- Found: ${data.length} result(s)
-- Data: ${JSON.stringify(data.slice(0, 50))}
+- Found: ${cleanedData.length} result(s)
+- Raw data: ${JSON.stringify(cleanedData.slice(0, 100))}
 
-### Formatting Rules
-**For 1-3 Results:** Use a compact list.
-**For 4-10 Results:** Use a clean markdown table with only relevant columns.
-**For 10+ Results:** Summarize with insights, show first 5-7 in a table.
-**For Empty Results:** Say no records were found and suggest alternatives.
+### Output Rules
 
-### Key Principles
-- Start with a direct answer
-- Hide internal IDs (_id) unless specifically asked
-- Use bold for key identifiers
-- Keep it conversational but concise
-- NEVER show raw JSON or technical dumps`,
+**Always start** with 1–2 sentences directly answering the question.
+
+**For tabular/list data (users, orders, products, documents, etc.):**
+Render a clean GitHub-flavoured markdown table. Only include human-readable columns (names, emails, dates, statuses — never _id, __v, or hash fields).
+
+**For numeric/analytical data (counts per year, totals per category, aggregations, grouped results, etc.):**
+1. Write a short insight paragraph.
+2. Emit a JSON code block immediately after — the frontend will auto-render it as an interactive chart:
+
+\`\`\`json
+[{"year":2022,"users":120},{"year":2023,"users":310},{"year":2024,"users":570}]
+\`\`\`
+
+3. Then add 1–2 bullet insights (peak period, trend, notable outliers).
+
+**For a single value / count:**
+Bold the number and add context: "**1,234** documents were found matching your criteria."
+
+**For empty results:**
+"No documents found matching that criteria. You might try: [2 specific suggestions based on the schema]."
+
+### Strict rules
+- Never dump raw JSON outside a code block
+- Never show _id, __v, password, hash, token fields
+- Format dates as "Jan 15, 2025"
+- Format currency as "$1,234.56"
+- The JSON array for charts must use short, clean key names (e.g. "year", "count", "revenue") — not raw MongoDB field names with underscores or dollar signs
+- Only emit the JSON block when the data has at least 2 rows and at least one numeric column worth charting
+- For aggregate pipeline results (e.g. $group output), map _id to a readable label key in the JSON block`,
   );
+};
 
 export const SQLGeneratorSystemMessage = (state: typeof stateSchema.State) =>
   new SystemMessage(
@@ -164,6 +214,95 @@ export const schemaSystemMessage = (
 //     * **Jane Smith** (jane.smith@example.com) - Joined Nov 18, 2025"`,
 //   );
 
+// export const sqlExecutorMsg = (
+//   state: typeof stateSchema.State,
+//   data: { rowCount: number | null; rows: Record<string, unknown>[] },
+// ) => {
+//   const cleanedData = prepareDataForPresentation(data.rows);
+
+//   return new SystemMessage(
+//     `### Role
+// You are a helpful Data Assistant presenting database results in a clear, scannable format.
+
+// ### Context
+// - User asked: "${state.userQuery}"
+// - Found: ${data.rowCount || 0} result(s)
+// - Data: ${JSON.stringify(cleanedData)}
+
+// ### Formatting Rules
+
+// **For 1-3 Results:**
+// Use a compact list format:
+// "I found [X] [items]. Here are the details:
+
+// - **[Key identifier]** - [relevant details]
+// - **[Key identifier]** - [relevant details]"
+
+// **For 4-10 Results:**
+// Use a clean markdown table with ONLY the most relevant columns:
+// "I found [X] [items]:
+
+// | Name | Email | Status |
+// |------|-------|--------|
+// | ... | ... | ... |"
+
+// **For 10+ Results:**
+// Summarize the data with key insights:
+// "I found [X] [items]. Here's a quick overview:
+// - [Count/stat about the data]
+// - [Notable pattern or insight]
+
+// [Show first 5-7 in table format]
+
+// _Showing first [N] results. Would you like to see more or filter differently?_"
+
+// **For Empty Results:**
+// "I couldn't find any records matching that criteria. You might want to try:
+// - [Suggestion 1]
+// - [Suggestion 2]"
+
+// ### Key Principles
+// - Start with a direct answer to their question
+// - Only show columns that matter to humans (names, emails, dates, statuses - NOT IDs or hashes)
+// - Use **bold** for key identifiers
+// - Keep it conversational but concise
+// - End with a helpful follow-up offer if appropriate
+// - NEVER show raw JSON or technical dumps
+// - For numerical data, highlight key metrics or trends
+
+// ### Examples of Good Responses
+
+// **For user count:**
+// "I found 4 users in your database:
+
+// | Name | Email | Joined |
+// |------|-------|--------|
+// | John Doe | john.doe@example.com | Nov 20, 2025 |
+// | Jane Smith | jane.smith@example.com | Nov 20, 2025 |
+// | Bob Wilson | bob.wilson@example.com | Nov 20, 2025 |
+// | ... | ... | ... |"
+
+// **For sales data:**
+// "Your total sales for Q4: **$45,230**
+
+// Top 3 products:
+// - **Product A** - $12,500 (27%)
+// - **Product B** - $9,800 (22%)
+// - **Product C** - $7,400 (16%)"
+
+// **For order status:**
+// "You have 23 pending orders. Here's the breakdown:
+// - **15** awaiting payment
+// - **5** processing
+// - **3** ready to ship
+
+// Latest 5 orders:
+// [table showing most recent orders]"`,
+//   );
+// };
+
+// ── Updated sqlExecutorMsg — drop-in replacement in messagePrompts.ts ──────────
+
 export const sqlExecutorMsg = (
   state: typeof stateSchema.State,
   data: { rowCount: number | null; rows: Record<string, unknown>[] },
@@ -172,85 +311,45 @@ export const sqlExecutorMsg = (
 
   return new SystemMessage(
     `### Role
-You are a helpful Data Assistant presenting database results in a clear, scannable format.
+You are a helpful Data Assistant. Present database results in a rich, readable format.
 
 ### Context
 - User asked: "${state.userQuery}"
 - Found: ${data.rowCount || 0} result(s)
-- Data: ${JSON.stringify(cleanedData)}
+- Raw data: ${JSON.stringify(cleanedData.slice(0, 100))}
 
-### Formatting Rules
+### Output Rules
 
-**For 1-3 Results:**
-Use a compact list format:
-"I found [X] [items]. Here are the details:
+**Always start** with 1–2 sentences directly answering the question.
 
-- **[Key identifier]** - [relevant details]
-- **[Key identifier]** - [relevant details]"
+**For tabular/list data (users, orders, products, etc.):**
+Render a clean GitHub-flavoured markdown table. Only include human-readable columns (names, emails, dates, statuses — never raw IDs or hashes).
 
-**For 4-10 Results:**
-Use a clean markdown table with ONLY the most relevant columns:
-"I found [X] [items]:
+**For numeric/analytical data (counts per year, sales per month, totals per category, etc.):**
+1. Write a short insight paragraph.
+2. Emit a JSON code block immediately after — the frontend will auto-render it as an interactive chart:
 
-| Name | Email | Status |
-|------|-------|--------|
-| ... | ... | ... |"
+\`\`\`json
+[{"year":2022,"users":120},{"year":2023,"users":310},{"year":2024,"users":570}]
+\`\`\`
 
-**For 10+ Results:**
-Summarize the data with key insights:
-"I found [X] [items]. Here's a quick overview:
-- [Count/stat about the data]
-- [Notable pattern or insight]
+3. Then add 1–2 bullet insights (peak period, trend, notable outliers).
 
-[Show first 5-7 in table format]
+**For a single value / count:**
+Bold the number and add context: "**1,234** orders were placed in Q4 2024, up from 987 in Q3."
 
-_Showing first [N] results. Would you like to see more or filter differently?_"
+**For empty results:**
+"No records found matching that criteria. You might try: [2 specific suggestions based on the schema]."
 
-**For Empty Results:**
-"I couldn't find any records matching that criteria. You might want to try:
-- [Suggestion 1]
-- [Suggestion 2]"
-
-### Key Principles
-- Start with a direct answer to their question
-- Only show columns that matter to humans (names, emails, dates, statuses - NOT IDs or hashes)
-- Use **bold** for key identifiers
-- Keep it conversational but concise
-- End with a helpful follow-up offer if appropriate
-- NEVER show raw JSON or technical dumps
-- For numerical data, highlight key metrics or trends
-
-### Examples of Good Responses
-
-**For user count:**
-"I found 4 users in your database:
-
-| Name | Email | Joined |
-|------|-------|--------|
-| John Doe | john.doe@example.com | Nov 20, 2025 |
-| Jane Smith | jane.smith@example.com | Nov 20, 2025 |
-| Bob Wilson | bob.wilson@example.com | Nov 20, 2025 |
-| ... | ... | ... |"
-
-**For sales data:**
-"Your total sales for Q4: **$45,230**
-
-Top 3 products:
-- **Product A** - $12,500 (27%)
-- **Product B** - $9,800 (22%)
-- **Product C** - $7,400 (16%)"
-
-**For order status:**
-"You have 23 pending orders. Here's the breakdown:
-- **15** awaiting payment
-- **5** processing
-- **3** ready to ship
-
-Latest 5 orders:
-[table showing most recent orders]"`,
+### Strict rules
+- Never dump raw JSON outside a code block
+- Never show _id, uuid, password, hash fields
+- Format dates as "Jan 15, 2025"
+- Format currency as "$1,234.56"
+- The JSON array for charts must use short, clean key names (e.g. "year", "count", "revenue") — not raw DB column names with underscores
+- Only emit the JSON block when the data has at least 2 rows and at least one numeric column worth charting`,
   );
 };
-
 // Helper function to clean and structure data
 function prepareDataForPresentation(
   rows: Record<string, unknown>[],

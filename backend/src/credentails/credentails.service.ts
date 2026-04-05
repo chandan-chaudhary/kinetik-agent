@@ -9,6 +9,18 @@ import {
   encryptAesGcm,
   decryptAesGcm,
 } from '@/common/crypto.util';
+import { CacheHelperService } from '@/redis/cache-helper.service';
+
+type CredentialCacheItem = {
+  id: string;
+  name: string;
+  type: CredentialType;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  data: string;
+  preview: string;
+};
 
 @Injectable()
 export class CredentailsService {
@@ -16,6 +28,7 @@ export class CredentailsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cacheService: CacheHelperService,
     @Inject(credentialsConfig.KEY)
     private readonly credConfig: ConfigType<typeof credentialsConfig>,
   ) {
@@ -51,6 +64,12 @@ export class CredentailsService {
         });
       }
 
+      await this.cacheService.invalidateEntityCache({
+        entity: 'credentials',
+        scope: [userId],
+        listFilters: [{ type: credential.type }],
+      });
+
       return {
         id: credential.id,
         name: credential.name,
@@ -72,6 +91,21 @@ export class CredentailsService {
   // Retrieve — decrypt and return typed fields
   async findAll(userId: string, type?: CredentialType) {
     try {
+      const cacheKey = type
+        ? this.cacheService.buildEntityListKey('credentials', [userId], {
+            type,
+          })
+        : this.cacheService.buildEntityListKey('credentials', [userId]);
+      console.log(cacheKey, 'in findall');
+
+      const cached = await this.cacheService.get(cacheKey);
+      if (cached) {
+        console.log('cached hit');
+
+        return cached as CredentialCacheItem[];
+      }
+      console.log('cached miss');
+
       const rows = await this.prisma.credential.findMany({
         where: { userId, ...(type ? { type } : {}) },
         orderBy: { updatedAt: 'desc' },
@@ -81,7 +115,7 @@ export class CredentailsService {
           httpStatus: HttpStatus.NOT_FOUND,
         });
       }
-      return rows.map((row) => ({
+      const credentials: CredentialCacheItem[] = rows.map((row) => ({
         id: row.id,
         name: row.name,
         type: row.type,
@@ -93,6 +127,8 @@ export class CredentailsService {
         // Expose provider for display without decrypting everything
         preview: this.extractPreview(row.data, row.type),
       }));
+      await this.cacheService.set(cacheKey, credentials, 300); // Cache for 5 minutes
+      return credentials;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -103,6 +139,14 @@ export class CredentailsService {
 
   async findOne(id: string, userId: string) {
     try {
+      const cacheKey = this.cacheService.buildEntityItemKey('credentials', id, [
+        userId,
+      ]);
+      const cached = await this.cacheService.get(cacheKey);
+      if (cached) {
+        return cached as CredentialCacheItem;
+      }
+
       const row = await this.prisma.credential.findFirst({
         where: { id, userId },
       });
@@ -112,7 +156,7 @@ export class CredentailsService {
         });
       }
 
-      return {
+      const credential: CredentialCacheItem = {
         id: row.id,
         name: row.name,
         type: row.type,
@@ -122,6 +166,9 @@ export class CredentailsService {
         data: row.data,
         preview: this.extractPreview(row.data, row.type),
       };
+
+      await this.cacheService.set(cacheKey, credential, 300);
+      return credential;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -163,6 +210,13 @@ export class CredentailsService {
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
           ...(dataToStore !== undefined ? { data: dataToStore } : {}),
         },
+      });
+
+      await this.cacheService.invalidateEntityCache({
+        entity: 'credentials',
+        scope: [userId],
+        id,
+        listFilters: [{ type: existing.type }, { type: updated.type }],
       });
 
       return {
@@ -239,7 +293,7 @@ export class CredentailsService {
     try {
       const existing = await this.prisma.credential.findFirst({
         where: { id, userId },
-        select: { id: true },
+        select: { id: true, type: true },
       });
 
       if (!existing) {
@@ -250,6 +304,12 @@ export class CredentailsService {
       }
 
       await this.prisma.credential.delete({ where: { id } });
+      await this.cacheService.invalidateEntityCache({
+        entity: 'credentials',
+        scope: [userId],
+        id,
+        listFilters: [{ type: existing.type }],
+      });
       return { success: true };
     } catch (error) {
       throw customError(error, {

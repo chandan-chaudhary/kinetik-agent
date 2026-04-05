@@ -16,6 +16,7 @@ import {
   isLlmProvider,
 } from '@/types/chat-config.types';
 import { createError, customError } from '@/common/customError';
+import { CacheHelperService } from '@/redis/cache-helper.service';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -60,15 +61,7 @@ type ChatSessionOutput = Omit<
 
 export type ChatSessionSummary = Pick<
   ChatSessionOutput,
-  | 'id'
-  | 'title'
-  | 'threadId'
-  | 'dbType'
-  // | 'llmCredentialId'
-  // | 'llmProvider'
-  // | 'llmModel'
-  | 'createdAt'
-  | 'updatedAt'
+  'id' | 'title' | 'threadId' | 'dbType' | 'createdAt' | 'updatedAt'
 >;
 
 @Injectable()
@@ -77,6 +70,7 @@ export class ChatSessionService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cacheHelper: CacheHelperService,
     @Inject(credentialsConfig.KEY)
     private readonly credConfig: ConfigType<typeof credentialsConfig>,
   ) {
@@ -112,6 +106,11 @@ export class ChatSessionService {
           httpStatus: HttpStatus.INTERNAL_SERVER_ERROR,
         });
       }
+      // Invalidate cache for the user's chat sessions list
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'chatSession',
+        scope: [userId],
+      });
       return this.toOutput(session);
     } catch (error) {
       throw customError(error, {
@@ -123,6 +122,13 @@ export class ChatSessionService {
 
   async findAll(userId: string): Promise<ChatSessionSummary[]> {
     try {
+      const cacheKey = this.cacheHelper.buildEntityListKey('chatSession', [
+        userId,
+      ]);
+      const cachedSession = await this.cacheHelper.get(cacheKey);
+      if (cachedSession) {
+        return cachedSession as ChatSessionSummary[];
+      }
       const sessions = await this.prisma.chatSession.findMany({
         where: { userId },
         select: {
@@ -140,10 +146,13 @@ export class ChatSessionService {
           httpStatus: HttpStatus.NOT_FOUND,
         });
       }
-      return sessions.map((session) => ({
+      // Cache the sessions list for the user
+      const customizedSessions = sessions.map((session) => ({
         ...session,
         dbType: isDbType(session.dbType) ? session.dbType : DbType.POSTGRES,
       }));
+      await this.cacheHelper.set(cacheKey, customizedSessions, 600); // Cache for 5 minutes
+      return customizedSessions;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -154,6 +163,13 @@ export class ChatSessionService {
 
   async findOne(id: string, userId: string): Promise<ChatSessionOutput> {
     try {
+      const cacheKey = this.cacheHelper.buildEntityItemKey('chatSession', id, [
+        userId,
+      ]);
+      const cachedSession = await this.cacheHelper.get(cacheKey);
+      if (cachedSession) {
+        return cachedSession as ChatSessionOutput;
+      }
       const session = await this.prisma.chatSession.findFirst({
         where: { id, userId },
       });
@@ -161,7 +177,9 @@ export class ChatSessionService {
         throw createError('Chat session not found', {
           httpStatus: HttpStatus.NOT_FOUND,
         });
-      return this.toOutput(session);
+      const customizedSession = this.toOutput(session);
+      await this.cacheHelper.set(cacheKey, customizedSession, 300); // Cache for 5 minutes
+      return customizedSession;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -175,6 +193,15 @@ export class ChatSessionService {
     userId: string,
   ): Promise<ChatSessionOutput> {
     try {
+      const cacheKey = this.cacheHelper.buildEntityListKey(
+        'chatSession',
+        [userId],
+        { threadId },
+      );
+      const cachedSession = await this.cacheHelper.get(cacheKey);
+      if (cachedSession) {
+        return cachedSession as ChatSessionOutput;
+      }
       const session = await this.prisma.chatSession.findFirst({
         where: { threadId, userId },
       });
@@ -182,7 +209,9 @@ export class ChatSessionService {
         throw createError('Chat session not found', {
           httpStatus: HttpStatus.NOT_FOUND,
         });
-      return this.toOutput(session);
+      const customizedSession = this.toOutput(session);
+      await this.cacheHelper.set(cacheKey, customizedSession, 300); // Cache for 5 minutes
+      return customizedSession;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -227,6 +256,14 @@ export class ChatSessionService {
       const updated = await this.prisma.chatSession.update({
         where: { id },
         data: updateData,
+      });
+
+      // Invalidate cache for this chat session and the sessions list
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'chatSession',
+        scope: [userId],
+        id,
+        listFilters: [{ threadId: session.threadId }],
       });
       return this.toOutput(updated);
     } catch (error) {
@@ -275,7 +312,13 @@ export class ChatSessionService {
           ? (dto.messages as unknown as Prisma.InputJsonValue)
           : undefined,
       };
-
+      // Invalidate cache for this chat session and the sessions list
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'chatSession',
+        scope: [userId],
+        id,
+        listFilters: [{ threadId: session.threadId }],
+      });
       const updated = await this.prisma.chatSession.update({
         where: { id },
         data: updateData,
@@ -293,7 +336,7 @@ export class ChatSessionService {
     try {
       const session = await this.prisma.chatSession.findFirst({
         where: { id, userId },
-        select: { id: true },
+        select: { id: true, threadId: true },
       });
       if (!session) {
         throw createError('Chat session not found', {
@@ -301,6 +344,12 @@ export class ChatSessionService {
         });
       }
       await this.prisma.chatSession.delete({ where: { id } });
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'chatSession',
+        scope: [userId],
+        id,
+        listFilters: [{ threadId: session.threadId }],
+      });
       return { success: true };
     } catch (error) {
       throw customError(error, {

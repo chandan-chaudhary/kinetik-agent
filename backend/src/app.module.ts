@@ -15,13 +15,16 @@ import { CredentailsModule } from './credentails/credentails.module';
 import { ChatSessionModule } from './chat-session/chat-session.module';
 import marketApiConfig from './config/market-api.config';
 import credentialsConfig from './config/credentials.config';
+import { RedisModule } from '@/redis/redis.module';
+import { QueueModule } from '@/queue/queue.module';
+import redisConfig from './config/redis.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [llmConfig, marketApiConfig, credentialsConfig],
+      load: [llmConfig, marketApiConfig, credentialsConfig, redisConfig],
     }),
     DatabaseModule,
     NodesModule,
@@ -32,6 +35,8 @@ import credentialsConfig from './config/credentials.config';
     ChatDatabaseModule,
     CredentailsModule,
     ChatSessionModule,
+    RedisModule,
+    QueueModule,
   ],
   controllers: [AppController, LanggraphController],
   providers: [AppService],

@@ -2,10 +2,14 @@ import { PrismaService } from '@/database/prisma.service';
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { NodeType, Prisma } from '@prisma/client';
 import { createError, customError } from '@/common/customError';
+import { CacheHelperService } from '@/redis/cache-helper.service';
 
 @Injectable()
 export class WorkflowService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly cacheHelper: CacheHelperService,
+  ) {}
   async create(data: Prisma.WorkflowCreateInput, userId: string) {
     try {
       if (!data.name || data.name.trim() === '') {
@@ -35,6 +39,12 @@ export class WorkflowService {
           httpStatus: HttpStatus.INTERNAL_SERVER_ERROR,
         });
       }
+
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'workflow',
+        scope: [userId],
+      });
+
       return workflow;
     } catch (error) {
       throw customError(error, {
@@ -46,6 +56,14 @@ export class WorkflowService {
 
   async findAll(userId: string) {
     try {
+      const cacheKey = this.cacheHelper.buildEntityListKey('workflow', [
+        userId,
+      ]);
+      const cached = await this.cacheHelper.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
       const workflows = await this.prisma.workflow.findMany({
         where: {
           userId: userId, // Replace with actual user ID from auth context
@@ -63,6 +81,9 @@ export class WorkflowService {
           httpStatus: HttpStatus.NOT_FOUND,
         });
       }
+
+      await this.cacheHelper.set(cacheKey, workflows, 300);
+
       return workflows;
     } catch (error) {
       throw customError(error, {
@@ -72,12 +93,27 @@ export class WorkflowService {
     }
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(
+    id: string,
+    userId: string,
+  ): Promise<
+    Prisma.WorkflowGetPayload<{ include: { nodes: true; connections: true } }>
+  > {
     try {
       if (!id || id.trim() === '') {
         throw createError('Workflow ID is required', {
           httpStatus: HttpStatus.BAD_REQUEST,
         });
+      }
+
+      const cacheKey = this.cacheHelper.buildEntityItemKey('workflow', id, [
+        userId,
+      ]);
+      const cached = await this.cacheHelper.get(cacheKey);
+      if (cached) {
+        return cached as Prisma.WorkflowGetPayload<{
+          include: { nodes: true; connections: true };
+        }>;
       }
 
       const workflow = await this.prisma.workflow.findUnique({
@@ -93,6 +129,8 @@ export class WorkflowService {
           httpStatus: HttpStatus.NOT_FOUND,
         });
       }
+
+      await this.cacheHelper.set(cacheKey, workflow, 300);
 
       return workflow;
     } catch (error) {
@@ -111,7 +149,7 @@ export class WorkflowService {
         });
       }
 
-      return await this.prisma.$transaction(async (tx) => {
+      const updatedWorkflow = await this.prisma.$transaction(async (tx) => {
         // Check if workflow exists
         const existingWorkflow = await tx.workflow.findUnique({
           where: { id, userId: userId },
@@ -179,6 +217,14 @@ export class WorkflowService {
           include: { nodes: true, connections: true },
         });
       });
+
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'workflow',
+        scope: [userId],
+        id,
+      });
+
+      return updatedWorkflow;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -208,7 +254,15 @@ export class WorkflowService {
       }
 
       // Prisma handles cascading deletes automatically if configured
-      return await this.prisma.workflow.delete({ where: { id } });
+      const deleted = await this.prisma.workflow.delete({ where: { id } });
+
+      await this.cacheHelper.invalidateEntityCache({
+        entity: 'workflow',
+        scope: [userId],
+        id,
+      });
+
+      return deleted;
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,

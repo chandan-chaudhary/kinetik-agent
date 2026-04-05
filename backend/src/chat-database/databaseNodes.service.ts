@@ -5,6 +5,7 @@ import {
   GraphNode,
   interrupt,
 } from '@langchain/langgraph';
+import { createHash } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import {
   executeMongoQuery,
@@ -22,10 +23,11 @@ import {
   SQLGeneratorSystemMessage,
 } from '@/config/messagePrompts';
 import { DbType } from '@/types/chat-config.types';
+import { CacheHelperService } from '@/redis/cache-helper.service';
 
 @Injectable()
 export class DatabaseNodesService {
-  constructor() {}
+  constructor(private readonly cacheHelper: CacheHelperService) {}
 
   getSchemaNode(
     databaseUrl?: string,
@@ -43,7 +45,21 @@ export class DatabaseNodesService {
       });
       try {
         console.log('in schema generating', dbType);
+        const databaseTarget = databaseUrl
+          ? createHash('sha256').update(databaseUrl).digest('hex').slice(0, 16)
+          : 'default';
 
+        const cacheKey = this.cacheHelper.buildEntityListKey(
+          'dbSchema',
+          [dbType],
+          { target: databaseTarget },
+        );
+
+        const cached = await this.cacheHelper.get(cacheKey);
+        if (cached) {
+          console.log('✅ Schema loaded from cache');
+          return { dbSchema: cached as string };
+        }
         const dbSchema =
           dbType === DbType.MONGODB && databaseUrl
             ? await getMongoSchema(databaseUrl)
@@ -52,6 +68,7 @@ export class DatabaseNodesService {
           '✅ Schema node completed, schema length:',
           dbSchema.length,
         );
+        await this.cacheHelper.set(cacheKey, dbSchema, 3600); // Cache for 1 hour
         return { dbSchema };
       } catch (error) {
         return {
