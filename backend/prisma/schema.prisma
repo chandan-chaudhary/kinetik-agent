@@ -160,20 +160,33 @@ model Connection {
 }
 
 model ChatSession {
-    id          String   @id @default(auto()) @map("_id") @db.ObjectId
-    userId      String   @db.ObjectId
-    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    title       String   @default("New Chat")
-    threadId    String   @unique // maps to LangGraph thread_id
-    dbType      String   @default("postgres")
-    databaseUrl String? // encrypted
-    llmCredentialId String? @db.ObjectId
-    llmProvider  String?
-    llmModel     String?
-    llmApiKey    String? // encrypted (only when user uses custom key)
-    messages    Json     @default("[]") // persisted message history for display
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id              String        @id @default(auto()) @map("_id") @db.ObjectId
+    userId          String        @db.ObjectId
+    user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    chatMessages    ChatMessage[]
+    title           String        @default("New Chat")
+    threadId        String        @unique // maps to LangGraph thread_id
+    dbType          String        @default("postgres")
+    databaseUrl     String? // encrypted
+    llmCredentialId String?       @db.ObjectId
+    llmProvider     String?
+    llmModel        String?
+    llmApiKey       String? // encrypted (only when user uses custom key)
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
 
     @@index([userId])
+}
+
+model ChatMessage {
+    id        String      @id @default(auto()) @map("_id") @db.ObjectId
+    sessionId String      @db.ObjectId
+    session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    role      String
+    content   String
+    sql       String?
+    createdAt DateTime    @default(now())
+
+    @@index([sessionId, createdAt])
+    @@index([sessionId])
 }

@@ -18,6 +18,7 @@ import credentialsConfig from './config/credentials.config';
 import { RedisModule } from '@/redis/redis.module';
 import { QueueModule } from '@/queue/queue.module';
 import redisConfig from './config/redis.config';
+import { TestQueueProcessor } from './queue/processors/test.worker';
 
 @Module({
   imports: [
@@ -39,6 +40,6 @@ import redisConfig from './config/redis.config';
     QueueModule,
   ],
   controllers: [AppController, LanggraphController],
-  providers: [AppService],
+  providers: [AppService, TestQueueProcessor],
 })
 export class AppModule {}

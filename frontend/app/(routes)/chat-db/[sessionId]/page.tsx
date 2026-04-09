@@ -48,6 +48,19 @@ interface ApprovalContext {
   };
 }
 
+const normalizeMessageContent = (content: unknown): string => {
+  if (typeof content === "string") return content;
+  if (content === null || content === undefined) return "";
+  try {
+    return JSON.stringify(content, null, 2);
+  } catch {
+    return String(content);
+  }
+};
+
+const getMessageKey = (message: ChatMessage): string =>
+  `${message.timestamp}-${message.role}`;
+
 const DEFAULT_DB_CHAT_CONFIG: DBChatConfig = {
   dbType: DEFAULT_DB_TYPE,
   databaseUrl: "",
@@ -247,13 +260,9 @@ export default function ChatDBSessionPage() {
             content: ctx as ApprovalContext["content"],
           });
         } else if (data.completed) {
-          const content =
-            typeof data.content === "string"
-              ? data.content
-              : JSON.stringify(data.content, null, 2);
           appendMessageForCurrentSession({
             role: "assistant",
-            content,
+            content: normalizeMessageContent(data.content),
             timestamp: new Date().toISOString(),
           });
         }
@@ -281,7 +290,7 @@ export default function ChatDBSessionPage() {
           if (data.completed) {
             appendMessageForCurrentSession({
               role: "assistant",
-              content: data.content ?? "",
+              content: normalizeMessageContent(data.content),
               timestamp: new Date().toISOString(),
             });
           }
@@ -383,7 +392,10 @@ export default function ChatDBSessionPage() {
                 />
               ) : (
                 messages.map((msg) => (
-                  <ChatMessageItem key={msg.timestamp} message={msg} />
+                  <ChatMessageItem
+                    key={getMessageKey(msg)}
+                    message={msg}
+                  />
                 ))
               )}
 

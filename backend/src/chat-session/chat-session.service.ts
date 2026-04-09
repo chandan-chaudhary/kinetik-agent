@@ -3,7 +3,11 @@ import { PrismaService } from '@/database/prisma.service';
 import credentialsConfig from '@/config/credentials.config';
 import type { ConfigType } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { Prisma, ChatSession } from '@prisma/client';
+import {
+  Prisma,
+  ChatSession,
+  ChatMessage as PrismaChatMessage,
+} from '@prisma/client';
 import {
   deriveAesGcmKey,
   encryptAesGcm,
@@ -37,7 +41,6 @@ export interface CreateSessionDto {
 
 export interface UpdateSessionDto {
   title?: string;
-  messages?: ChatMessage[];
   dbType?: DbType;
   databaseUrl?: string;
   llmCredentialId?: string;
@@ -46,10 +49,7 @@ export interface UpdateSessionDto {
   llmApiKey?: string;
 }
 
-type ChatSessionOutput = Omit<
-  ChatSession,
-  'databaseUrl' | 'llmApiKey' | 'messages'
-> & {
+type ChatSessionOutput = Omit<ChatSession, 'databaseUrl' | 'llmApiKey'> & {
   dbType: DbType;
   databaseUrl: string | null;
   llmCredentialId: string | null;
@@ -57,6 +57,10 @@ type ChatSessionOutput = Omit<
   llmModel: string | null;
   llmApiKey: string | null;
   messages: ChatMessage[];
+};
+
+type ChatSessionWithMessages = ChatSession & {
+  chatMessages: PrismaChatMessage[];
 };
 
 export type ChatSessionSummary = Pick<
@@ -98,7 +102,6 @@ export class ChatSessionService {
           llmApiKey: dto.llmApiKey
             ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
             : null,
-          messages: [] as Prisma.InputJsonValue,
         },
       });
       if (!session) {
@@ -111,7 +114,7 @@ export class ChatSessionService {
         entity: 'chatSession',
         scope: [userId],
       });
-      return this.toOutput(session);
+      return this.toOutput({ ...session, chatMessages: [] });
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -172,6 +175,11 @@ export class ChatSessionService {
       }
       const session = await this.prisma.chatSession.findFirst({
         where: { id, userId },
+        include: {
+          chatMessages: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
       });
       if (!session)
         throw createError('Chat session not found', {
@@ -204,6 +212,11 @@ export class ChatSessionService {
       }
       const session = await this.prisma.chatSession.findFirst({
         where: { threadId, userId },
+        include: {
+          chatMessages: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
       });
       if (!session)
         throw createError('Chat session not found', {
@@ -226,8 +239,24 @@ export class ChatSessionService {
     message: ChatMessage,
   ): Promise<ChatSessionOutput> {
     try {
+      return this.appendMessages(id, userId, [message]);
+    } catch (error) {
+      throw customError(error, {
+        fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
+        fallbackMessage: 'Failed to append message to chat session',
+      });
+    }
+  }
+
+  async appendMessages(
+    id: string,
+    userId: string,
+    messages: ChatMessage[],
+  ): Promise<ChatSessionOutput> {
+    try {
       const session = await this.prisma.chatSession.findFirst({
         where: { id, userId },
+        select: { id: true, threadId: true, title: true },
       });
       if (!session) {
         throw createError('Chat session not found', {
@@ -235,28 +264,36 @@ export class ChatSessionService {
         });
       }
 
-      const messages = this.parseMessages(session.messages);
-      messages.push(message);
+      if (messages.length > 0) {
+        const createInputs: Prisma.ChatMessageCreateManyInput[] = messages.map(
+          (message) => ({
+            sessionId: id,
+            role: message.role,
+            content: message.content,
+            sql: message.sql,
+            createdAt: message.timestamp
+              ? new Date(message.timestamp)
+              : new Date(),
+          }),
+        );
 
-      // Auto-generate title from first user message
-      const isFirstUserMessage =
-        message.role === 'user' &&
-        messages.filter((m) => m.role === 'user').length === 1;
+        const firstUserMessage = messages.find((m) => m.role === 'user');
+        await this.prisma.$transaction(async (tx) => {
+          await tx.chatMessage.createMany({ data: createInputs });
 
-      const updateData: Prisma.ChatSessionUpdateInput = {
-        messages: messages as unknown as Prisma.InputJsonValue,
-      };
-      if (isFirstUserMessage) {
-        updateData.title =
-          message.content.length > 50
-            ? `${message.content.slice(0, 50)}...`
-            : message.content;
+          if (firstUserMessage && session.title === 'New Chat') {
+            await tx.chatSession.update({
+              where: { id },
+              data: {
+                title:
+                  firstUserMessage.content.length > 50
+                    ? `${firstUserMessage.content.slice(0, 50)}...`
+                    : firstUserMessage.content,
+              },
+            });
+          }
+        });
       }
-
-      const updated = await this.prisma.chatSession.update({
-        where: { id },
-        data: updateData,
-      });
 
       // Invalidate cache for this chat session and the sessions list
       await this.cacheHelper.invalidateEntityCache({
@@ -265,11 +302,27 @@ export class ChatSessionService {
         id,
         listFilters: [{ threadId: session.threadId }],
       });
-      return this.toOutput(updated);
+
+      const updatedSession = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+        include: {
+          chatMessages: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+
+      if (!updatedSession) {
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
+
+      return this.toOutput(updatedSession);
     } catch (error) {
       throw customError(error, {
         fallbackStatus: HttpStatus.INTERNAL_SERVER_ERROR,
-        fallbackMessage: 'Failed to append message to chat session',
+        fallbackMessage: 'Failed to append messages to chat session',
       });
     }
   }
@@ -308,9 +361,6 @@ export class ChatSessionService {
               ? encryptAesGcm(dto.llmApiKey, this.encryptionKey)
               : null
             : undefined,
-        messages: dto.messages
-          ? (dto.messages as unknown as Prisma.InputJsonValue)
-          : undefined,
       };
       // Invalidate cache for this chat session and the sessions list
       await this.cacheHelper.invalidateEntityCache({
@@ -319,10 +369,23 @@ export class ChatSessionService {
         id,
         listFilters: [{ threadId: session.threadId }],
       });
-      const updated = await this.prisma.chatSession.update({
+      await this.prisma.chatSession.update({
         where: { id },
         data: updateData,
       });
+      const updated = await this.prisma.chatSession.findFirst({
+        where: { id, userId },
+        include: {
+          chatMessages: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+      if (!updated) {
+        throw createError('Chat session not found', {
+          httpStatus: HttpStatus.NOT_FOUND,
+        });
+      }
       return this.toOutput(updated);
     } catch (error) {
       throw customError(error, {
@@ -359,7 +422,7 @@ export class ChatSessionService {
     }
   }
 
-  private toOutput(session: ChatSession): ChatSessionOutput {
+  private toOutput(session: ChatSessionWithMessages): ChatSessionOutput {
     const sessionRecord = session as unknown as Record<string, unknown>;
     const llmCredentialId =
       typeof sessionRecord.llmCredentialId === 'string'
@@ -381,7 +444,17 @@ export class ChatSessionService {
     return {
       ...session,
       dbType,
-      messages: this.parseMessages(session.messages),
+      messages: session.chatMessages.map((message) => ({
+        role:
+          message.role === 'user' ||
+          message.role === 'assistant' ||
+          message.role === 'system'
+            ? message.role
+            : 'system',
+        content: message.content,
+        sql: message.sql || undefined,
+        timestamp: message.createdAt.toISOString(),
+      })),
       databaseUrl: session.databaseUrl
         ? decryptAesGcm(session.databaseUrl, this.encryptionKey)
         : null,
@@ -392,32 +465,5 @@ export class ChatSessionService {
         ? decryptAesGcm(llmApiKey, this.encryptionKey)
         : null,
     };
-  }
-
-  private parseMessages(value: Prisma.JsonValue | null): ChatMessage[] {
-    if (!Array.isArray(value)) return [];
-    return value
-      .map((item) => {
-        if (
-          item &&
-          typeof item === 'object' &&
-          'role' in item &&
-          'content' in item &&
-          'timestamp' in item
-        ) {
-          const candidate = item as unknown as Partial<ChatMessage>;
-          if (
-            (candidate.role === 'user' ||
-              candidate.role === 'assistant' ||
-              candidate.role === 'system') &&
-            typeof candidate.content === 'string' &&
-            typeof candidate.timestamp === 'string'
-          ) {
-            return candidate;
-          }
-        }
-        return null;
-      })
-      .filter((m): m is ChatMessage => Boolean(m));
   }
 }

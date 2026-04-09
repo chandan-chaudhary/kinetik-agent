@@ -10,6 +10,7 @@ import {
 import { TradingNodeService } from '@/nodes/trading-node/trading-node.service';
 import { TelegramService } from '@/telegram-bot/telegram-bot.service';
 import { tavilyTool } from '@/tools/tavily.tool';
+// import { Processor } from '@nestjs/bullmq';
 
 type WorkflowWithRelations = Prisma.WorkflowGetPayload<{
   include: {
@@ -29,6 +30,7 @@ type CompiledGraphCacheItem = {
   graph: MarketGraph;
 };
 
+// @Processor('workflow') // Optional: if you want to process jobs directly here instead of via QueueService. Not used in current implementation.
 @Injectable()
 export class WorkflowGraphExecutionService {
   private readonly logger = new Logger(WorkflowGraphExecutionService.name);

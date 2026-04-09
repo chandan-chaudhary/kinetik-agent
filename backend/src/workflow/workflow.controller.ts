@@ -22,6 +22,9 @@ import { Prisma } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
 import type { AuthenticatedRequest } from '@/types/auth.types';
 import { WorkflowGraphExecutionService } from './workflow-graph-execution.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { WORKFLOW_QUEUE } from '@/queue/queue.constants';
+import { Queue } from 'bullmq';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('workflow')
@@ -29,6 +32,8 @@ export class WorkflowController {
   constructor(
     private readonly workflowService: WorkflowService,
     private readonly graphExecutionService: WorkflowGraphExecutionService,
+    @InjectQueue(WORKFLOW_QUEUE)
+    private readonly queue: Queue,
   ) {}
 
   @Post()

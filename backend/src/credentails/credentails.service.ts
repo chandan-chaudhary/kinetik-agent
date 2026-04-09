@@ -96,15 +96,11 @@ export class CredentailsService {
             type,
           })
         : this.cacheService.buildEntityListKey('credentials', [userId]);
-      console.log(cacheKey, 'in findall');
 
       const cached = await this.cacheService.get(cacheKey);
       if (cached) {
-        console.log('cached hit');
-
         return cached as CredentialCacheItem[];
       }
-      console.log('cached miss');
 
       const rows = await this.prisma.credential.findMany({
         where: { userId, ...(type ? { type } : {}) },

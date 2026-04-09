@@ -41,12 +41,12 @@ export default function Dashboard() {
         badgeBg: "bg-emerald-500/10",
       },
       status: "Updated",
-      disabled: false,
+      disabled: true,
     },
     {
       title: "Executions",
       description: "Monitor workflow runs and execution history",
-      href: "#",
+      href: "/executions",
       icon: Zap,
       accent: {
         text: "text-amber-500",

@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import type { RedisConfig } from '@/config/redis.config';
 import { QueueService } from '@/queue/queue.service';
 import { WorkflowProcessor } from '@/queue/processors/workflow.processor';
-import { WORKFLOW_QUEUE } from '@/queue/queue.constants';
+import { TEST_QUEUE, WORKFLOW_QUEUE } from '@/queue/queue.constants';
 
 @Module({
   imports: [
@@ -28,11 +28,14 @@ import { WORKFLOW_QUEUE } from '@/queue/queue.constants';
         };
       },
     }),
-    BullModule.registerQueue({
-      name: WORKFLOW_QUEUE,
-    }),
+    BullModule.registerQueue(
+      {
+        name: WORKFLOW_QUEUE,
+      },
+      { name: TEST_QUEUE },
+    ),
   ],
   providers: [QueueService, WorkflowProcessor],
-  exports: [QueueService],
+  exports: [QueueService, BullModule],
 })
 export class QueueModule {}

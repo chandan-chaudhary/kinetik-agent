@@ -1,13 +1,16 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
-import type { Cache } from 'cache-manager';
+import { REDIS_COMMAND } from './redis.constants';
+import Redis from 'ioredis';
+// import type { Cache } from 'cache-manager';
 
 type KeyPart = string | number | boolean;
 type EntityFilters = Record<string, string | number | boolean | undefined>;
 
 @Injectable()
 export class CacheHelperService {
-  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
+  // constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
+  constructor(@Inject(REDIS_COMMAND) private readonly cacheManager: Redis) {}
 
   buildKey(...parts: KeyPart[]): string {
     return parts
@@ -87,26 +90,44 @@ export class CacheHelperService {
     loader: () => Promise<T>,
     ttlSeconds = 60,
   ): Promise<T> {
-    const cached = await this.cacheManager.get<T>(key);
+    const cached = await this.get(key);
     if (cached !== null && cached !== undefined) {
-      return cached;
+      return cached as T;
     }
 
     const value = await loader();
-    await this.cacheManager.set(key, value, ttlSeconds * 1000);
+    await this.set(key, value, ttlSeconds);
     return value;
   }
 
-  async get(key: string): Promise<unknown> {
-    return this.cacheManager.get(key);
+  // async get(key: string): Promise<unknown> {
+  //   return this.cacheManager.get(key);
+  // }
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const raw = await this.cacheManager.get(key);
+      if (!raw) return null;
+      return JSON.parse(raw) as T;
+    } catch (err) {
+      console.error(`Failed to get cache for key "${key}":`, err);
+      return null;
+    }
   }
 
   async set(key: string, value: unknown, ttlSeconds = 60): Promise<void> {
-    await this.cacheManager.set(key, value, ttlSeconds * 1000);
+    try {
+      await this.cacheManager.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    } catch (err) {
+      console.error(`Failed to set cache for key "${key}":`, err);
+    }
   }
 
   async del(key: string): Promise<void> {
-    await this.cacheManager.del(key);
+    try {
+      await this.cacheManager.del(key);
+    } catch (error) {
+      console.error(`Failed to delete cache for key "${key}":`, error);
+    }
   }
 
   async invalidateKey(key: string): Promise<void> {

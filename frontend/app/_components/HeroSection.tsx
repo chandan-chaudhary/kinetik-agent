@@ -205,13 +205,13 @@ const HeroSection = () => {
                 </svg>
               </Button>
 
-              <Button
+              {/* <Button
                 size="lg"
                 variant="outline"
                 className="px-8 py-6 text-base font-medium rounded-xl border-2 hover:bg-accent transition-colors"
               >
                 See It in Action
-              </Button>
+              </Button> */}
             </motion.div>
 
             {/* Feature Highlights */}

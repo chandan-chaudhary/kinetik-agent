@@ -1,4 +1,4 @@
-import { CacheModule } from '@nestjs/cache-manager';
+// import { CacheModule } from '@nestjs/cache-manager';
 import {
   Global,
   Inject,
@@ -6,10 +6,8 @@ import {
   Module,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { redisStore } from 'cache-manager-ioredis-yet';
+import { ConfigModule } from '@nestjs/config';
 import Redis from 'ioredis';
-import type { RedisConfig } from '@/config/redis.config';
 import {
   REDIS_COMMAND,
   REDIS_PUBLISHER,
@@ -25,29 +23,33 @@ import { CacheHelperService } from '@/redis/cache-helper.service';
 @Module({
   imports: [
     ConfigModule,
-    CacheModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const redis = configService.getOrThrow<RedisConfig>('redis');
+    // CacheModule.registerAsync({
+    //   imports: [ConfigModule],
+    //   inject: [ConfigService],
+    //   useFactory: async (configService: ConfigService) => {
+    //     const redis = configService.getOrThrow<RedisConfig>('redis');
 
-        const store = await redisStore({
-          host: redis.host,
-          port: redis.port,
-          username: redis.username,
-          password: redis.password,
-          db: redis.db,
-          keyPrefix: redis.keyPrefix,
-          ttl: redis.ttl,
-          ...(redis.tls ? { tls: redis.tls } : {}),
-        });
+    //     const store = await redisStore({
+    //       // socket:{
 
-        return {
-          store: store as never,
-        };
-      },
-      isGlobal: true,
-    }),
+    //       // }
+
+    //       host: redis.host,
+    //       port: redis.port,
+    //       username: redis.username,
+    //       password: redis.password,
+    //       db: redis.db,
+    //       keyPrefix: redis.keyPrefix,
+    //       ttl: redis.ttl,
+    //       ...(redis.tls ? { tls: redis.tls } : {}),
+    //     });
+
+    //     return {
+    //       stores: [store],
+    //     };
+    //   },
+    //   isGlobal: true,
+    // }),
   ],
   providers: [
     ...redisProviders,
@@ -64,7 +66,7 @@ import { CacheHelperService } from '@/redis/cache-helper.service';
     RedisHealthService,
     PubSubService,
     CacheHelperService,
-    CacheModule,
+    // CacheModule,
   ],
 })
 export class RedisModule implements OnModuleDestroy {

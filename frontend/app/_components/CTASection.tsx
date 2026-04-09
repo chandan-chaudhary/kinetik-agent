@@ -34,13 +34,13 @@ const CTASection = () => {
               Get Started Now
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               size="lg"
               className="px-8 py-6 text-base font-medium rounded-xl border-border hover:bg-secondary"
             >
               Schedule Demo
-            </Button>
+            </Button> */}
           </div>
         </motion.div>
       </div>

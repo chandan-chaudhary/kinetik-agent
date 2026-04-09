@@ -46,17 +46,6 @@ export class ChatDatabaseService {
         });
       }
 
-      // 2. Persist user message
-      await this.chatSessionService.appendMessage(
-        config.sessionId,
-        config.userId,
-        {
-          role: 'user',
-          content: prompt,
-          timestamp: new Date().toISOString(),
-        },
-      );
-
       const sessionRecord = session as unknown as Record<string, unknown>;
       const sessionLlmProvider = isLlmProvider(sessionRecord.llmProvider)
         ? sessionRecord.llmProvider
@@ -133,6 +122,18 @@ export class ChatDatabaseService {
 
       // 7. Handle interrupt (approval needed)
       if (result.__interrupt__ && result.__interrupt__.length > 0) {
+        await this.chatSessionService.appendMessages(
+          config.sessionId,
+          config.userId,
+          [
+            {
+              role: 'user',
+              content: prompt,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        );
+
         return {
           interrupted: true,
           threadId,
@@ -148,14 +149,21 @@ export class ChatDatabaseService {
           .messages;
         const lastContent = messages[messages.length - 1].content;
 
-        await this.chatSessionService.appendMessage(
+        await this.chatSessionService.appendMessages(
           config.sessionId,
           config.userId,
-          {
-            role: 'assistant',
-            content: lastContent,
-            timestamp: new Date().toISOString(),
-          },
+          [
+            {
+              role: 'user',
+              content: prompt,
+              timestamp: new Date().toISOString(),
+            },
+            {
+              role: 'assistant',
+              content: lastContent,
+              timestamp: new Date().toISOString(),
+            },
+          ],
         );
 
         return {

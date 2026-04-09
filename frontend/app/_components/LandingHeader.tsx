@@ -16,14 +16,14 @@ import { BadgeDollarSign, Mail, Menu, Sparkles } from "lucide-react";
 import BrandLockup from "./BrandLockup";
 
 const Header = () => {
-  const navLinks = ["Features", "Pricing", "Contact"];
+  const navLinks = ["Services", "Pricing", "Contact"];
   const { user, isLoading } = useUser();
 
   const navMeta: Record<
     string,
     { icon: React.ComponentType<{ className?: string }> }
   > = {
-    Features: { icon: Sparkles },
+    Services: { icon: Sparkles },
     Pricing: { icon: BadgeDollarSign },
     Contact: { icon: Mail },
   };

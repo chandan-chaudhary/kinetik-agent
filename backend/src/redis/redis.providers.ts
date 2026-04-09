@@ -25,25 +25,33 @@ const buildRedisOptions = (configService: ConfigService): RedisOptions => {
   };
 };
 
-const createRedisClient = (options: RedisOptions): Redis => new Redis(options);
+const createRedisClient = (options: RedisOptions, name: string): Redis => {
+  const client = new Redis(options);
+
+  client.on('connect', () => {
+    console.log(`[Redis:${name}] status: ${client.status}`);
+  });
+
+  return client;
+};
 
 export const redisProviders: Provider[] = [
   {
     provide: REDIS_COMMAND,
     inject: [ConfigService],
     useFactory: (configService: ConfigService) =>
-      createRedisClient(buildRedisOptions(configService)),
+      createRedisClient(buildRedisOptions(configService), 'command'),
   },
   {
     provide: REDIS_PUBLISHER,
     inject: [ConfigService],
     useFactory: (configService: ConfigService) =>
-      createRedisClient(buildRedisOptions(configService)),
+      createRedisClient(buildRedisOptions(configService), 'publisher'),
   },
   {
     provide: REDIS_SUBSCRIBER,
     inject: [ConfigService],
     useFactory: (configService: ConfigService) =>
-      createRedisClient(buildRedisOptions(configService)),
+      createRedisClient(buildRedisOptions(configService), 'subscriber'),
   },
 ];
