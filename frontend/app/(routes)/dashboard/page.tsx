@@ -2,7 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Workflow, ArrowRight, Zap, Database } from "lucide-react";
+import {
+  Workflow,
+  ArrowRight,
+  Zap,
+  Database,
+  Sparkles,
+  Activity,
+  Clock3,
+  Bot,
+} from "lucide-react";
 import Link from "next/link";
 import EntityHeader from "@/components/entity-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,7 +49,7 @@ export default function Dashboard() {
         badgeBorder: "border-emerald-500/30",
         badgeBg: "bg-emerald-500/10",
       },
-      status: "Updated",
+      status: "Soon",
       disabled: true,
     },
     {
@@ -69,6 +78,55 @@ export default function Dashboard() {
       />
 
       <main className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-8">
+        {/* <Card className="overflow-hidden border-primary/20 bg-card/70 shadow-sm">
+          <CardContent className="relative p-0">
+            <div className="absolute inset-0 bg-linear-to-r from-primary/10 via-workflow-action/10 to-workflow-trigger/10" />
+            <div className="relative grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  label: "Live automations",
+                  value: "12",
+                  note: "+3 this week",
+                  tone: "text-workflow-success",
+                },
+                {
+                  label: "Avg execution time",
+                  value: "2.4s",
+                  note: "-18% faster",
+                  tone: "text-workflow-action",
+                },
+                {
+                  label: "Queue health",
+                  value: "99.9%",
+                  note: "all systems stable",
+                  tone: "text-workflow-trigger",
+                },
+                {
+                  label: "Pending approvals",
+                  value: "5",
+                  note: "2 high priority",
+                  tone: "text-workflow-condition",
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  className="rounded-xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm"
+                >
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {metric.label}
+                  </p>
+                  <p className={`mt-2 text-2xl font-semibold ${metric.tone}`}>
+                    {metric.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {metric.note}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card> */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {quickActions.map((action) => {
             const {
@@ -95,10 +153,11 @@ export default function Dashboard() {
                 role="button"
                 tabIndex={disabled ? -1 : 0}
                 aria-disabled={disabled}
-                className={`group relative flex flex-col items-start gap-3 rounded-xl border border-border/60 bg-card/60 p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 ${accent.ring} ${accent.border} ${
+                className={`group relative flex flex-col items-start gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/60 p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 ${accent.ring} ${accent.border} ${
                   disabled ? "opacity-60 cursor-not-allowed" : ""
                 }`}
               >
+                <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-opacity group-hover:opacity-100 opacity-40" />
                 <div className="flex items-center justify-between w-full">
                   <div
                     className={`rounded-xl bg-linear-to-br ${accent.bg} p-3`}
@@ -129,28 +188,80 @@ export default function Dashboard() {
           })}
         </div>
 
-        <Card className="rounded-2xl border-dashed border-primary/30 bg-primary/5 p-0 text-center shadow-inner">
-          <CardContent className="flex flex-col items-center gap-4 p-6 max-w-2xl mx-auto">
-            <div className="rounded-xl bg-linear-to-br from-primary to-primary/80 p-4 shadow-lg shadow-primary/30">
-              <Workflow className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold">Build your next workflow</h2>
-              <p className="text-sm text-muted-foreground">
-                Launch the visual builder to connect triggers, actions, and
-                databases in minutes.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button asChild size="default" className="shadow-md">
-                <Link href="/workflow">
-                  <Workflow className="mr-2 h-4 w-4" />
-                  Create workflow
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="relative overflow-hidden border-border/70 bg-card/70 lg:col-span-2">
+            <CardContent className="relative p-6 sm:p-8">
+              <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-workflow-action/10" />
+              <div className="relative space-y-5">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Automation Command Center
+                </div>
+                <div className="max-w-xl space-y-2">
+                  <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Design, deploy, and monitor workflows from one place
+                  </h2>
+                  <p className="text-sm text-muted-foreground sm:text-base">
+                    Build intelligent flows, connect your data, and keep every
+                    execution observable with real-time queue visibility.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                 
+                  <Button asChild size="default">
+                    <Link href="/chat-db">
+                      <Database className="mr-2 h-4 w-4" />
+                      Explore Data Assistant
+                    </Link>
+                  </Button>
+                   <Button size="default" className="shadow-md" disabled={true} variant="secondary">
+                    {/* <Link href="/workflow"> */}
+                      {/* <Workflow className="mr-2 h-4 w-4" /> */}
+                      Workflow Builder (soon)
+                    {/* </Link> */}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* <Card className="border-border/70 bg-card/70">
+            <CardContent className="space-y-4 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Platform Pulse
+                </h3>
+                <Activity className="h-4 w-4 text-workflow-success" />
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="inline-flex items-center gap-2 font-medium">
+                      <Bot className="h-4 w-4 text-workflow-action" />
+                      AI Agent Activity
+                    </span>
+                    <span className="text-workflow-success">Active</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    8 tasks processed in the last 30 minutes
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="inline-flex items-center gap-2 font-medium">
+                      <Clock3 className="h-4 w-4 text-workflow-condition" />
+                      Next scheduled run
+                    </span>
+                    <span>12m</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Daily market sync workflow is queued
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card> */}
+        </section>
       </main>
     </div>
   );

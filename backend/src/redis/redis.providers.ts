@@ -7,6 +7,7 @@ import {
   REDIS_PUBLISHER,
   REDIS_SUBSCRIBER,
 } from '@/redis/redis.constants';
+import { AuthConfig } from '@/config/auth.config';
 
 type RedisConnectionConfig =
   | { url: string; options: RedisOptions }
@@ -16,6 +17,8 @@ const buildRedisConnection = (
   configService: ConfigService,
 ): RedisConnectionConfig => {
   const redis = configService.getOrThrow<RedisConfig>('redis');
+  const node_env = configService.getOrThrow<AuthConfig>('auth').nodeEnv;
+
   const baseOptions: RedisOptions = {
     db: redis.db,
     keyPrefix: redis.keyPrefix,
@@ -25,7 +28,7 @@ const buildRedisConnection = (
     ...(redis.tls ? { tls: redis.tls } : {}),
   };
 
-  const shouldUseUrl = process.env.NODE_ENV === 'production' && !!redis.url;
+  const shouldUseUrl = node_env === 'production' && !!redis.url;
   console.log(shouldUseUrl, redis.url);
 
   if (shouldUseUrl && redis.url) {

@@ -60,7 +60,7 @@ export default registerAs('redis', () => {
     process.env.REDIS_TLS === 'true' || Boolean(parsedRedisUrl.tls);
 
   return {
-    url: redisUrl || undefined,
+    url: redisUrl,
     host: process.env.REDIS_HOST || parsedRedisUrl.host || '127.0.0.1',
     port: parseNumber(process.env.REDIS_PORT, parsedRedisUrl.port ?? 6379),
     username:

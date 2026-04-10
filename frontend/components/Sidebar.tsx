@@ -21,7 +21,7 @@ import BrandLockup from "@/app/_components/BrandLockup";
 const navigationItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/chat-db", label: "Chat DB", icon: Database },
-  { href: "/workflow", label: "Workflows", icon: Workflow },
+  // { href: "/workflow", label: "Workflows", icon: Workflow },
   { href: "/executions", label: "Executions", icon: Activity },
   { href: "/credentials", label: "Credentials", icon: KeyIcon },
 ];
